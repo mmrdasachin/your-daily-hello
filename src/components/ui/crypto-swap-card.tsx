@@ -26,6 +26,7 @@ import {
   LPPosition,
   readProvider
 } from "@/lib/litdex-core-logic"
+import type { RouterKey } from "@/lib/litdex-core-logic"
 import { ChevronDown } from "lucide-react"
 import { addNotif } from "@/lib/notifications"
 import { showSuccess, showError, refreshPoints } from "@/lib/feedback"
@@ -62,7 +63,7 @@ export default function SwapCard({
   const [isSwapping, setIsSwapping] = React.useState(false)
   const [subMode, setSubMode] = React.useState<"add" | "remove">("add")
   const [activeRouter, setActiveRouter] = React.useState<string>("")
-  const [activeRouterKey, setActiveRouterKey] = React.useState<any>("liteswap")
+  const [activeRouterKey, setActiveRouterKey] = React.useState<RouterKey>("liteswap")
   const [activePath, setActivePath] = React.useState<string[]>([])
   const [lpPositions, setLpPositions] = React.useState<LPPosition[]>([])
   const [loadingPositions, setLoadingPositions] = React.useState(false)
@@ -311,7 +312,7 @@ export default function SwapCard({
     setTxHash(null);
     try {
       if (mode === "swap") {
-        const rKey = activeRouterKey;
+        const rKey: RouterKey = activeRouterKey;
         const rAddr = ROUTERS[rKey].address;
         const amountInWei = parseEther(fromAmount);
         const path = activePath;
