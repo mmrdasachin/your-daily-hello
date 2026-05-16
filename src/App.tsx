@@ -3463,6 +3463,10 @@ const MathSlashPage = ({ onBack }: { onBack: () => void }) => {
         fetchStats();
         return;
       }
+      if (d.type === 'SCORE_UPDATE' || d.type === 'litdex:mathslash:score') {
+        liveScoreRef.current = Number(d.score) || 0;
+        return;
+      }
       // Accept BOTH the new GAME_OVER event and the legacy litdex:mathslash:end event
       const isGameOver = d.type === 'GAME_OVER' || d.type === 'litdex:mathslash:end';
       if (!isGameOver) return;
