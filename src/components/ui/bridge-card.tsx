@@ -384,8 +384,16 @@ const ProgressModal = ({ state, onClose, onBridgeAgain }: { state: ProgressState
             </div>
 
             {state.done && (
-              <div className="mt-5 text-center text-sm font-bold text-white font-mono">
-                ✓ {state.amount} {state.destSymbol} arrived on {CHAIN_INFO[state.destChain].name}
+              <div className="mt-5 text-center text-sm font-bold text-white font-mono space-y-1">
+                {state.isBurn ? (
+                  <>
+                    <div>🔥 {state.amount} {state.tokenSymbol} burned on Sepolia</div>
+                    <div>✓ {state.amount} {state.destSymbol} arriving on {CHAIN_INFO[state.destChain].name}</div>
+                    <div className="text-[10px] text-white/40 font-normal pt-1">Burned to: 0x000...dEaD</div>
+                  </>
+                ) : (
+                  <>✓ {state.amount} {state.destSymbol} arrived on {CHAIN_INFO[state.destChain].name}</>
+                )}
               </div>
             )}
 
