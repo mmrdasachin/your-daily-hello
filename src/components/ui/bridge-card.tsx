@@ -528,7 +528,7 @@ export default function BridgeCard({ className = "" }: { className?: string }) {
     }
 
     const needsApproval = selected.address !== null;
-    const isBurn = fromChain === "sepolia" && (selected.symbol === "ETH" || selected.symbol === "WZKLTC");
+    const isBurn = fromChain === "sepolia";
 
     // Build labeled steps per direction
     const destLabel = isBurn ? "Burned & Arrived" : (fromChain === "litvm" ? "Sepolia" : "LitVM");
