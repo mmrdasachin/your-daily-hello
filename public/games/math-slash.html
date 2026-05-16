@@ -1497,13 +1497,15 @@
     }
   }
 
-  function endGame() {
+  async function endGame() {
     setGameState('gameover');
-    if (score > bestScore) {
-      bestScore = score;
+    // BUG 2 FIX: capture final score immediately so async UI cannot read a reset value
+    const finalScore = score;
+    if (finalScore > bestScore) {
+      bestScore = finalScore;
       localStorage.setItem('mathslash_best', bestScore.toString());
     }
-    goScore.textContent = `Score: ${score}`;
+    goScore.textContent = `Score: ${finalScore}`;
     goStats.textContent = `Correct: ${totalCorrect}  |  Wrong: ${totalWrong}`;
     goLevel.textContent = `Reached Level ${currentLevel+1} — ${LEVELS[currentLevel].name}`;
     goBest.textContent = `Best: ${bestScore}`;
@@ -1514,22 +1516,28 @@
 
     goScreen.classList.remove('hidden');
 
-    // Call LitDeX /end endpoint
-    LitDeX.endSession(score);
-
-    // Tap-guard: prevent stray finger from gameplay auto-triggering
-    // PLAY AGAIN / EXIT when the screen pops up. Buttons are inert for
-    // 600ms after the game-over screen appears.
+    // BUG 4 FLOW: show "Converting…" loading state, hide buttons until /end resolves
     isSlicing = false;
     const _restart = document.getElementById('restart-btn');
     const _exit    = document.getElementById('exit-btn');
-    if (_restart) { _restart.style.pointerEvents = 'none'; _restart.style.opacity = '0.5'; }
-    if (_exit)    { _exit.style.pointerEvents    = 'none'; _exit.style.opacity    = '0.5'; }
+    const _reward  = document.getElementById('reward-card');
+    const _zkEl    = document.getElementById('go-zk-earned');
+    const _gamesEl = document.getElementById('go-games-left');
+    if (_reward)  _reward.style.display = 'block';
+    if (_zkEl)    _zkEl.textContent = 'Converting to zkLTC…';
+    if (_gamesEl) _gamesEl.textContent = '';
+    if (_restart) { _restart.style.display = 'none'; }
+    if (_exit)    { _exit.style.display    = 'none'; }
+
+    // BUG 3 FIX: this is the single place /simple/end is called (await it before showing buttons)
+    try { await LitDeX.endSession(finalScore); } catch (e) { console.warn('[MathSlash] endSession threw', e); }
+
+    // Now reveal action buttons (with brief tap-guard against stray slicing fingers)
     setTimeout(() => {
       if (gameState !== 'gameover') return;
-      if (_restart) { _restart.style.pointerEvents = 'auto'; _restart.style.opacity = '1'; _restart.textContent = 'PLAY AGAIN'; }
-      if (_exit)    { _exit.style.pointerEvents    = 'auto'; _exit.style.opacity    = '1'; }
-    }, 600);
+      if (_restart) { _restart.style.display = ''; _restart.style.pointerEvents = 'auto'; _restart.style.opacity = '1'; _restart.textContent = 'PLAY AGAIN'; }
+      if (_exit)    { _exit.style.display    = ''; _exit.style.pointerEvents    = 'auto'; _exit.style.opacity    = '1'; }
+    }, 400);
   }
 
   // ═════════════════════════════════════════════════════
