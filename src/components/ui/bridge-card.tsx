@@ -495,7 +495,23 @@ export default function BridgeCard({ className = "" }: { className?: string }) {
     destChain: "sepolia",
     amount: "0",
     destSymbol: "",
+    tokenSymbol: "",
+    isBurn: false,
   });
+
+  const [totalBurned, setTotalBurned] = React.useState<bigint | null>(null);
+
+  const fetchTotalBurned = React.useCallback(async () => {
+    try {
+      const c = new Contract(SEPOLIA_BRIDGE, SEPOLIA_BRIDGE_ABI, sepProv);
+      const v = (await c.getTotalBurned()) as bigint;
+      setTotalBurned(v);
+    } catch {
+      setTotalBurned(null);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchTotalBurned(); }, [fetchTotalBurned]);
 
   const closeProgress = () => setProgress((p) => ({ ...p, open: false }));
   const bridgeAgain = () => { closeProgress(); setAmount(""); };
@@ -510,22 +526,24 @@ export default function BridgeCard({ className = "" }: { className?: string }) {
     }
 
     const needsApproval = selected.address !== null;
+    const isBurn = fromChain === "sepolia" && (selected.symbol === "ETH" || selected.symbol === "WZKLTC");
 
     // Build labeled steps per direction
+    const destLabel = isBurn ? "Burned & Arrived" : (fromChain === "litvm" ? "Sepolia" : "LitVM");
     const baseSteps = fromChain === "litvm"
       ? [
           { key: "litvm", label: "LitVM" },
           { key: "approve", label: "Approve" },
           { key: "confirm", label: "Confirm" },
           { key: "bridging", label: "Bridging" },
-          { key: "sepolia", label: "Sepolia" },
+          { key: "sepolia", label: destLabel },
         ]
       : [
           { key: "sepolia", label: "Sepolia" },
           { key: "approve", label: "Approve" },
           { key: "confirm", label: "Confirm" },
           { key: "bridging", label: "Bridging" },
-          { key: "litvm", label: "LitVM" },
+          { key: "litvm", label: destLabel },
         ];
 
     const steps = needsApproval ? baseSteps : baseSteps.filter((s) => s.key !== "approve");
@@ -541,6 +559,8 @@ export default function BridgeCard({ className = "" }: { className?: string }) {
       destChain: toChain,
       amount,
       destSymbol: selected.destSymbol,
+      tokenSymbol: selected.symbol,
+      isBurn,
     });
     setIsBridging(true);
 
