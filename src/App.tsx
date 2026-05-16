@@ -3675,21 +3675,17 @@ const MathSlashPage = ({ onBack }: { onBack: () => void }) => {
 
       {/* Global stats bottom bar */}
       {!playing && (
-        <div className="mt-6 p-5 rounded-2xl font-mono bg-brand-surface border border-brand-border grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="mt-6 p-5 rounded-2xl font-mono bg-brand-surface border border-brand-border grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <div className="text-[10px] uppercase text-brand-text-muted">Total Games</div>
             <div className="text-brand-text-primary text-lg font-bold">{Number(global?.totalGames ?? 0).toLocaleString()}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-brand-text-muted">Total Players</div>
+            <div className="text-[10px] uppercase text-brand-text-muted">Unique Players</div>
             <div className="text-brand-text-primary text-lg font-bold">{Number(global?.uniquePlayers ?? 0).toLocaleString()}</div>
           </div>
           <div>
-            <div className="text-[10px] uppercase text-brand-text-muted">Total Score</div>
-            <div className="text-brand-text-primary text-lg font-bold">{Number(global?.totalScore ?? 0).toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-brand-text-muted">zkLTC Distributed</div>
+            <div className="text-[10px] uppercase text-brand-text-muted">Total zkLTC Distributed</div>
             <div className="text-brand-text-primary text-lg font-bold">{Number(global?.totalZkltc ?? 0).toFixed(6)}</div>
           </div>
         </div>
