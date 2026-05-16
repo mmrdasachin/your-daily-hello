@@ -3553,6 +3553,12 @@ const MathSlashPage = ({ onBack }: { onBack: () => void }) => {
   };
 
   const handleExitGame = () => {
+    const liveScore = liveScoreRef.current || 0;
+    // Silent background submit per spec
+    if (lowerAddr) {
+      submitFinalScore(liveScore).catch((err) => console.warn('[MathSlash] exit submit failed:', err)).finally(() => { fetchStats(); fetchBoard(); fetchGlobal(); });
+    }
+    liveScoreRef.current = 0;
     setPlaying(false);
     setGameOver(null);
     setEndingGame(false);
@@ -3560,9 +3566,6 @@ const MathSlashPage = ({ onBack }: { onBack: () => void }) => {
     setAutoStart(false);
     try { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); } catch {}
     try { (screen.orientation as any)?.unlock?.(); } catch {}
-    fetchStats();
-    fetchBoard();
-    fetchGlobal();
   };
 
   useEffect(() => {
