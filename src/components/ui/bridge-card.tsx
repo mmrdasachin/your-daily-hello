@@ -284,7 +284,7 @@ const ProgressModal = ({ state, onClose, onBridgeAgain }: { state: ProgressState
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[10001] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={(e) => {
+          onClick={() => {
             // Not dismissible during bridging
             if (state.done || state.failed) onClose();
           }}
@@ -294,7 +294,7 @@ const ProgressModal = ({ state, onClose, onBridgeAgain }: { state: ProgressState
             animate={{ y: 0 }}
             exit={{ y: 200 }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
             className="w-full sm:max-w-md mx-auto p-6 sm:p-7"
             style={{ background: "#0a0a0a", border: "1px solid #1f1f1f", borderRadius: 16 }}
           >
