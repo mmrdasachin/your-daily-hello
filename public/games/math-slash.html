@@ -1967,7 +1967,7 @@ const LitDeX = (() => {
     }
   }
 
-  // ── End session (submit score, receive zkLTC) ─────────────────────────
+  // ── End session (legacy fallback; React parent handles score submission) ─────────────────────────
   async function endSession(score) {
     if (!activeSession) return;
     const { sessionId } = activeSession;
@@ -1981,18 +1981,8 @@ const LitDeX = (() => {
       });
       const data = await r.json();
 
-      const rewardCard = el('reward-card');
-      const zkEl       = el('go-zk-earned');
-      const gamesEl    = el('go-games-left');
-      const txEl       = el('go-tx-hash');
-
       if (r.ok && data.success) {
         const ptsEarned = data.pointsEarned || 0;
-
-        if (rewardCard) rewardCard.style.display = 'block';
-        if (zkEl)    zkEl.textContent = `+${ptsEarned} PTS`;
-        if (gamesEl) gamesEl.textContent = `Games left today: ${data.gamesLeft ?? activeSession?.gamesLeft ?? '—'}`;
-        if (txEl)    txEl.style.display = 'none';
 
         const hudZk = el('hud-zk-today');
         if (hudZk) hudZk.textContent = ptsEarned + ' PTS';
@@ -2008,9 +1998,6 @@ const LitDeX = (() => {
         } catch (_) {}
 
       } else {
-        if (rewardCard) rewardCard.style.display = 'block';
-        if (zkEl)    zkEl.textContent = 'Reward pending…';
-        if (gamesEl) gamesEl.textContent = data.error || 'Could not fetch reward';
         showErr('go-error', '⚠ ' + (data.error || 'Reward dispatch failed'));
       }
     } catch (err) {
