@@ -48,8 +48,27 @@ export const litvmChain = defineChain({
   testnet: true,
 });
 
+// Sepolia (for cross-chain bridge)
+export const SEPOLIA_CHAIN_ID = 11155111;
+export const SEPOLIA_RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+export const SEPOLIA_EXPLORER_URL = "https://sepolia.etherscan.io";
+export const sepoliaChain = defineChain({
+  id: SEPOLIA_CHAIN_ID,
+  name: "Sepolia",
+  nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: { http: [SEPOLIA_RPC_URL] },
+    public: { http: [SEPOLIA_RPC_URL] },
+  },
+  blockExplorers: {
+    default: { name: "Etherscan", url: SEPOLIA_EXPLORER_URL },
+  },
+  testnet: true,
+});
+
 /** Shared read-only provider (use this for all view calls). */
 export const readProvider = new JsonRpcProvider(RPC_URL);
+export const sepoliaReadProvider = new JsonRpcProvider(SEPOLIA_RPC_URL);
 
 /* =====================================================================
  * SECTION 2 — CONTRACT ADDRESSES
@@ -362,9 +381,10 @@ async function getSignerContract(addr: string, abi: readonly unknown[]) {
 export const wagmiConfig = getDefaultConfig({
   appName: "LitVM Explorer",
   projectId: "litvm-explorer-public",
-  chains: [litvmChain],
+  chains: [litvmChain, sepoliaChain],
   transports: {
     [litvmChain.id]: http(RPC_URL),
+    [sepoliaChain.id]: http(SEPOLIA_RPC_URL),
   },
   ssr: false,
 });

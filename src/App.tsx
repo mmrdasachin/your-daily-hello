@@ -49,6 +49,7 @@ import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
 import { formatEther, parseEther, formatUnits, parseUnits } from 'ethers';
 import type * as lib from './lib/litdex-core-logic';
 import SwapCard from './components/ui/crypto-swap-card';
+import BridgeCard from './components/ui/bridge-card';
 import { AnimatedNavFramer } from './components/ui/navigation-menu';
 import { litvmChain, errMsg, LITDEX_DEPLOYER_ADDRESS, readTotalDeployed, deployTokenLitDeX, shortAddr, readDeployments, readDeployFee, readLegacyDeployFee, deployTokenLegacy, getLegacyTokenInfo, getLegacyTokensByCreator, getLegacyTotalDeployedDisplay, readPoints, readCheckinInfo, readCurrentDay, checkinToday, claimNFTRewardsByType, claimNFTRewards, readUserNFTs, readNFTPendingByType, readNFTCurrentDay, readNFTTotalMinted, readNFTAvailablePoints, syncUserPoints, mintRewardNFT } from './lib/litdex-core-logic';
 import { showSuccess, showError, showInfo, refreshPoints } from './lib/feedback';
@@ -178,6 +179,7 @@ const DeployerTotalCard = () => {
 /// --- Page: Swap ---
 const SwapPage = () => {
   const eco = useEcosystemStats();
+  const [showBridge, setShowBridge] = useState(false);
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.98 }} 
@@ -192,8 +194,48 @@ const SwapPage = () => {
           <Droplets size={14} className="group-hover:text-white transition-colors" />
           Faucet
         </button>
+        <button
+          onClick={() => setShowBridge((v) => !v)}
+          className="group flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 hover:border-[#FF6B00]/50 hover:bg-[#FF6B00]/[0.06] transition-all text-[11px] font-bold uppercase tracking-[0.18em] text-white/80 backdrop-blur-xl"
+        >
+          {showBridge ? (
+            <>
+              <ArrowLeftRight size={14} className="group-hover:text-[#FF6B00] transition-colors" />
+              ← Swap
+            </>
+          ) : (
+            <>
+              <span className="group-hover:text-[#FF6B00] transition-colors">⛓️</span>
+              Cross Chain
+            </>
+          )}
+        </button>
       </div>
-      <SwapCard className="brand-glow-hover transition-all duration-500" />
+      <div className="relative w-full max-w-[480px] overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          {showBridge ? (
+            <motion.div
+              key="bridge"
+              initial={{ x: "100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "100%", opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <BridgeCard className="brand-glow-hover transition-all duration-500" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="swap"
+              initial={{ x: "-100%", opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "-100%", opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <SwapCard className="brand-glow-hover transition-all duration-500" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   );
 };
