@@ -435,7 +435,7 @@ const ProgressModal = ({ state, onClose, onBridgeAgain }: { state: ProgressState
 };
 
 // ============== Main Bridge Card ==============
-export default function BridgeCard({ className = "" }: { className?: string }) {
+export default function BridgeCard({ className = "", onNavigate }: { className?: string; onNavigate?: (page: string) => void }) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
