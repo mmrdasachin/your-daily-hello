@@ -1855,7 +1855,7 @@ const LitDeX = (() => {
   async function loadStats() {
     if (!walletAddress) return;
     try {
-      const r = await fetch(`${API}/simple/stats/${walletAddress}`);
+      const r = await fetch(`${API}/game/mathslash/stats/${walletAddress}`);
       const data = await r.json();
 
       if (!r.ok) {
