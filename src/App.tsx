@@ -4055,6 +4055,16 @@ const MessengerPage = () => {
   const [sending, setSending] = useState(false);
   const [lastSentHash, setLastSentHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [backendPoints, setBackendPoints] = useState<number>(0);
+
+  const fetchBackendPoints = async () => {
+    if (!address) return;
+    try {
+      const r = await fetch(`https://api.test-hub.xyz/points/${address}`);
+      const j = await r.json();
+      setBackendPoints(Number(j?.total ?? 0));
+    } catch (err) { console.error('[Messenger] points fetch failed:', err); }
+  };
 
   const fetchStats = async () => {
     if (!address) return;
