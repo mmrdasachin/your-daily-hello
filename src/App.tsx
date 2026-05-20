@@ -3196,6 +3196,7 @@ const QuestsPage = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [threadLink, setThreadLink] = useState('');
+  const [quoteLink, setQuoteLink] = useState('');
   const [videoLink, setVideoLink] = useState('');
   const [submitBusy, setSubmitBusy] = useState<string | null>(null);
 
