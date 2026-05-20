@@ -3184,9 +3184,11 @@ type SocialTask = {
   icon?: string;
   category: string;
   claimed?: boolean;
+  submission_based?: boolean;
+  quote_status?: 'pending' | 'approved' | 'rejected' | null;
 };
 
-type Submission = { type: string; link: string; status: string; admin_note?: string };
+type Submission = { type: string; tweet_ref?: string; link: string; status: string; admin_note?: string };
 
 const QuestsPage = () => {
   const { address, isConnected } = useAccount();
@@ -3196,8 +3198,8 @@ const QuestsPage = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [threadLink, setThreadLink] = useState('');
-  const [quoteLink, setQuoteLink] = useState('');
   const [videoLink, setVideoLink] = useState('');
+  const [quoteInputs, setQuoteInputs] = useState<Record<string, string>>({});
   const [submitBusy, setSubmitBusy] = useState<string | null>(null);
 
   const loadTasks = async () => {
@@ -3206,7 +3208,7 @@ const QuestsPage = () => {
     try {
       const r = await fetch(`${SOCIAL_API}/social/tasks/${address}`);
       const d = await r.json();
-      setTasks(Array.isArray(d?.tasks) ? d.tasks : []);
+      setTasks(Array.isArray(d?.tasks) ? d.tasks : (Array.isArray(d) ? d : []));
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -3255,21 +3257,31 @@ const QuestsPage = () => {
     }
   };
 
-  const submitContent = async (type: 'thread' | 'quote_tweet' | 'video', link: string) => {
+  const submitContent = async (
+    type: 'thread' | 'video' | 'quote_tweet',
+    link: string,
+    tweet_ref?: string,
+  ) => {
     if (!address || !link.trim()) return;
-    setSubmitBusy(type);
+    const key = tweet_ref ? `${type}:${tweet_ref}` : type;
+    setSubmitBusy(key);
     try {
+      const body: any = { wallet: address, type, link: link.trim() };
+      if (tweet_ref) body.tweet_ref = tweet_ref;
       const r = await fetch(`${SOCIAL_API}/social/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: address, type, link: link.trim() }),
+        body: JSON.stringify(body),
       });
       const d = await r.json().catch(() => ({}));
       if (r.ok && d?.success !== false) {
         showInfo('Submitted! Awaiting approval.');
         if (type === 'thread') setThreadLink('');
-        else if (type === 'quote_tweet') setQuoteLink('');
-        else setVideoLink('');
+        else if (type === 'video') setVideoLink('');
+        else if (type === 'quote_tweet' && tweet_ref) {
+          setQuoteInputs(prev => ({ ...prev, [tweet_ref]: '' }));
+          setTasks(prev => prev.map(t => t.id === tweet_ref ? { ...t, quote_status: 'pending' } : t));
+        }
         await loadSubmissions();
       } else {
         showError(d?.error || d?.message || 'Failed to submit');
@@ -3281,18 +3293,21 @@ const QuestsPage = () => {
     }
   };
 
+  const isPartnership = (t: SocialTask) => t.category === 'follow' && t.id.toLowerCase().includes('faros');
+
   const groups: { key: string; title: string; filter: (t: SocialTask) => boolean }[] = [
-    { key: 'partnerships', title: 'Partnerships', filter: (t) => t.category === 'follow' && t.id.toLowerCase().includes('farosbeacon') },
-    { key: 'follow', title: 'X Follows', filter: (t) => t.category === 'follow' && !t.id.toLowerCase().includes('farosbeacon') },
-    { key: 'tweet', title: 'Likes & Retweets', filter: (t) => t.category === 'tweet' && !t.id.toLowerCase().includes('quote') },
+    { key: 'partnerships', title: 'Partnerships', filter: (t) => isPartnership(t) },
+    { key: 'follow', title: 'X Follows', filter: (t) => t.category === 'follow' && !isPartnership(t) },
+    { key: 'tweet', title: 'Like & Retweet', filter: (t) => t.category === 'tweet' },
     { key: 'telegram', title: 'Telegram', filter: (t) => t.category === 'telegram' },
+    { key: 'quote', title: 'Quote Tweets', filter: (t) => t.category === 'quote' },
   ];
 
-  const totalEarned = tasks.reduce((acc, t) => acc + (t.claimed ? t.points : 0), 0);
+  const approvedQuotes = tasks.filter(t => t.category === 'quote' && t.quote_status === 'approved').length;
+  const totalEarned = tasks.reduce((acc, t) => acc + (t.claimed ? t.points : 0), 0) + approvedQuotes * 50;
   const totalPossible = 820;
 
   const threadSub = submissions.find(s => s.type === 'thread');
-  const quoteSub = submissions.find(s => s.type === 'quote_tweet');
   const videoSub = submissions.find(s => s.type === 'video');
 
   const renderIcon = (t: SocialTask) => t.category === 'telegram' ? '✈' : '𝕏';
@@ -3313,6 +3328,132 @@ const QuestsPage = () => {
 
   const canResubmit = (sub?: Submission) => !sub || sub.status === 'rejected';
 
+  const renderDirectClaimCard = (t: SocialTask, groupTitle: string) => {
+    const isDone = !!t.claimed;
+    const hasVisited = !!visited[t.id];
+    return (
+      <Card key={t.id} className={cn(
+        "p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all",
+        isDone ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-black/20 border-white/5 hover:bg-white/[0.03]"
+      )}>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className={cn(
+            "w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border",
+            isDone ? "bg-white/[0.02] border-white/5 text-white/30" : "bg-white/5 border-white/10 text-white"
+          )}>
+            {renderIcon(t)}
+          </div>
+          <div className="min-w-0">
+            <h3 className={cn("font-semibold truncate", isDone ? "text-white/40" : "text-white")}>{t.title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={cn(
+                "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                isDone ? "border-white/5 text-white/30" : "border-white/15 text-white bg-white/5"
+              )}>
+                +{t.points} PTS
+              </span>
+              <span className="text-[10px] text-brand-text-muted uppercase tracking-widest">{groupTitle}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          {isDone ? (
+            <span className="px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-green-500/10 border border-green-500/30 text-green-400">
+              ✅ Claimed
+            </span>
+          ) : !hasVisited ? (
+            <a
+              href={t.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setVisited(prev => ({ ...prev, [t.id]: true }))}
+              className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/15 text-white hover:bg-white/10 transition-all"
+            >
+              Go <ExternalLink size={11} />
+            </a>
+          ) : (
+            <button
+              onClick={() => claimTask(t)}
+              disabled={busy === t.id || !isConnected}
+              className="flex-1 md:flex-none px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
+            >
+              {busy === t.id ? "Claiming…" : "Claim"}
+            </button>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
+  const renderQuoteCard = (t: SocialTask) => {
+    const status = t.quote_status || null;
+    const hasVisited = !!visited[t.id];
+    const inputVal = quoteInputs[t.id] || '';
+    const subKey = `quote_tweet:${t.id}`;
+
+    return (
+      <Card key={t.id} className={cn(
+        "p-5 flex flex-col gap-3 transition-all",
+        status === 'approved' ? "bg-white/[0.02] border-white/5 opacity-80" : "bg-black/20 border-white/5"
+      )}>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">𝕏</div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-white truncate">{t.title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-white/15 text-white bg-white/5">
+                +{t.points || 50} PTS
+              </span>
+              <span className="text-[10px] text-brand-text-muted uppercase tracking-widest">Quote Tweets</span>
+            </div>
+          </div>
+        </div>
+
+        {status === 'approved' ? (
+          <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-green-500/30 text-green-400 bg-green-500/10 inline-block w-fit">
+            ✅ Approved +50 PTS
+          </div>
+        ) : status === 'pending' ? (
+          <div className="text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/15 text-white bg-white/5 inline-block w-fit">
+            ⏳ Pending Review
+          </div>
+        ) : !hasVisited ? (
+          <a
+            href={t.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => setVisited(prev => ({ ...prev, [t.id]: true }))}
+            className="inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/15 text-white hover:bg-white/10 transition-all w-fit"
+          >
+            Go <ExternalLink size={11} />
+          </a>
+        ) : (
+          <>
+            {status === 'rejected' && (
+              <div className="text-[10px] font-bold uppercase tracking-widest text-red-400">❌ Rejected — Resubmit below</div>
+            )}
+            <div className="flex flex-col md:flex-row gap-2">
+              <input
+                type="text"
+                value={inputVal}
+                onChange={(e) => setQuoteInputs(prev => ({ ...prev, [t.id]: e.target.value }))}
+                placeholder="Paste your quote tweet link"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30"
+              />
+              <button
+                onClick={() => submitContent('quote_tweet', inputVal, t.id)}
+                disabled={!inputVal.trim() || submitBusy === subKey}
+                className="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
+              >
+                {submitBusy === subKey ? 'Submitting…' : 'Submit'}
+              </button>
+            </div>
+          </>
+        )}
+      </Card>
+    );
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 max-w-4xl mx-auto px-4">
       {/* Header */}
@@ -3330,8 +3471,8 @@ const QuestsPage = () => {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[9px] uppercase tracking-widest text-brand-text-muted">Earned</div>
-          <div className="font-mono text-white text-xl font-bold">{totalEarned}<span className="text-brand-text-muted text-xs"> / {totalPossible}</span></div>
+          <div className="text-[9px] uppercase tracking-widest text-brand-text-muted">Available</div>
+          <div className="font-mono text-white text-xl font-bold">{totalEarned}<span className="text-brand-text-muted text-xs"> / {totalPossible} PTS</span></div>
         </div>
       </div>
 
@@ -3354,82 +3495,27 @@ const QuestsPage = () => {
               <h2 className="text-lg font-bold text-white tracking-tight">{group.title}</h2>
             </div>
             <div className="space-y-3">
-              {items.map(t => {
-                const isDone = !!t.claimed;
-                const hasVisited = !!visited[t.id];
-                return (
-                  <Card key={t.id} className={cn(
-                    "p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all",
-                    isDone ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-black/20 border-white/5 hover:bg-white/[0.03]"
-                  )}>
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border",
-                        isDone ? "bg-white/[0.02] border-white/5 text-white/30" : "bg-white/5 border-white/10 text-white"
-                      )}>
-                        {renderIcon(t)}
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className={cn("font-semibold truncate", isDone ? "text-white/40" : "text-white")}>{t.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={cn(
-                            "text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                            isDone ? "border-white/5 text-white/30" : "border-white/15 text-white bg-white/5"
-                          )}>
-                            +{t.points} PTS
-                          </span>
-                          <span className="text-[10px] text-brand-text-muted uppercase tracking-widest">{group.title}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      {isDone ? (
-                        <span className="px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40">
-                          Completed
-                        </span>
-                      ) : !hasVisited ? (
-                        <a
-                          href={t.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={() => setVisited(prev => ({ ...prev, [t.id]: true }))}
-                          className="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/15 text-white hover:bg-white/10 transition-all"
-                        >
-                          Go <ExternalLink size={11} />
-                        </a>
-                      ) : (
-                        <button
-                          onClick={() => claimTask(t)}
-                          disabled={busy === t.id || !isConnected}
-                          className="flex-1 md:flex-none px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
-                        >
-                          {busy === t.id ? "Claiming…" : "Claim"}
-                        </button>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
+              {items.map(t => group.key === 'quote' ? renderQuoteCard(t) : renderDirectClaimCard(t, group.title))}
             </div>
           </div>
         );
       })}
 
-      {/* Content Submission Section */}
+      {/* Content Rewards Section */}
       {isConnected && (
         <div className="mb-10">
-          <h2 className="text-lg font-bold text-white tracking-tight mb-4">Content Submissions</h2>
+          <h2 className="text-lg font-bold text-white tracking-tight mb-4">Content Rewards</h2>
           <div className="space-y-3">
             {/* Card 1 — Thread */}
             <Card className="p-5 bg-black/20 border-white/5">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">𝕏</div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-white">Explain LitDeX on X (Thread)</h3>
+                  <h3 className="font-semibold text-white">Explain LitDeX on X</h3>
                   <p className="text-xs text-brand-text-muted mt-1">Write a thread explaining how LitDeX works and post it on X</p>
                   <ul className="mt-3 space-y-1 text-[11px] text-white/80">
-                    <li>• Regular account: <span className="font-mono text-white">500 pts + 0.1 zkLTC</span></li>
-                    <li>• ✅ Verified X account: <span className="font-mono text-white">1000 pts + 1 zkLTC</span></li>
+                    <li>• Regular: <span className="font-mono text-white">500 pts + 0.1 zkLTC</span></li>
+                    <li>• ✅ Verified X: <span className="font-mono text-white">1000 pts + 1 zkLTC</span></li>
                   </ul>
                 </div>
               </div>
@@ -3453,55 +3539,18 @@ const QuestsPage = () => {
                   </button>
                 </div>
               )}
-              {threadSub && canResubmit(threadSub) && threadSub.status === 'rejected' && (
+              {threadSub && threadSub.status === 'rejected' && (
                 <div className="mt-3">{renderSubmissionStatus(threadSub)}</div>
               )}
             </Card>
 
-            {/* Card 2 — Quote Tweet */}
-            <Card className="p-5 bg-black/20 border-white/5">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">𝕏</div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-white">Quote Tweet a LitDeX Post</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Quote any LitDeX tweet with your thoughts and submit the link for review</p>
-                  <ul className="mt-3 space-y-1 text-[11px] text-white/80">
-                    <li>• Reward: <span className="font-mono text-white">50 pts per approved quote tweet</span></li>
-                  </ul>
-                </div>
-              </div>
-              {quoteSub && !canResubmit(quoteSub) ? (
-                <div>{renderSubmissionStatus(quoteSub)}</div>
-              ) : (
-                <div className="flex flex-col md:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={quoteLink}
-                    onChange={(e) => setQuoteLink(e.target.value)}
-                    placeholder="Paste your quote tweet link"
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30"
-                  />
-                  <button
-                    onClick={() => submitContent('quote_tweet', quoteLink)}
-                    disabled={!quoteLink.trim() || submitBusy === 'quote_tweet'}
-                    className="px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-white text-black hover:opacity-90 disabled:opacity-40 transition-all"
-                  >
-                    {submitBusy === 'quote_tweet' ? 'Submitting…' : 'Submit'}
-                  </button>
-                </div>
-              )}
-              {quoteSub && canResubmit(quoteSub) && quoteSub.status === 'rejected' && (
-                <div className="mt-3">{renderSubmissionStatus(quoteSub)}</div>
-              )}
-            </Card>
-
-            {/* Card 3 — Video */}
+            {/* Card 2 — Video */}
             <Card className="p-5 bg-black/20 border-white/5">
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border bg-white/5 border-white/10 text-white">🎬</div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-white">Record & Explain LitDeX</h3>
-                  <p className="text-xs text-brand-text-muted mt-1">Post a video or detailed post explaining LitDeX on X or YouTube</p>
+                  <p className="text-xs text-brand-text-muted mt-1">Post a video or detailed post on X or YouTube. Min 1000 views required.</p>
                   <ul className="mt-3 space-y-1 text-[11px] text-white/80">
                     <li>• Reward: <span className="font-mono text-white">6000 pts + 1 zkLTC</span></li>
                     <li className="text-yellow-400/80">⚠️ Minimum 1000 views required for approval</li>
@@ -3528,7 +3577,7 @@ const QuestsPage = () => {
                   </button>
                 </div>
               )}
-              {videoSub && canResubmit(videoSub) && videoSub.status === 'rejected' && (
+              {videoSub && videoSub.status === 'rejected' && (
                 <div className="mt-3">{renderSubmissionStatus(videoSub)}</div>
               )}
             </Card>
