@@ -3255,7 +3255,7 @@ const QuestsPage = () => {
     }
   };
 
-  const submitContent = async (type: 'thread' | 'video', link: string) => {
+  const submitContent = async (type: 'thread' | 'quote_tweet' | 'video', link: string) => {
     if (!address || !link.trim()) return;
     setSubmitBusy(type);
     try {
@@ -3268,6 +3268,7 @@ const QuestsPage = () => {
       if (r.ok && d?.success !== false) {
         showInfo('Submitted! Awaiting approval.');
         if (type === 'thread') setThreadLink('');
+        else if (type === 'quote_tweet') setQuoteLink('');
         else setVideoLink('');
         await loadSubmissions();
       } else {
