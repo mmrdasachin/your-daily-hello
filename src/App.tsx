@@ -3284,14 +3284,15 @@ const QuestsPage = () => {
   const groups: { key: string; title: string; filter: (t: SocialTask) => boolean }[] = [
     { key: 'partnerships', title: 'Partnerships', filter: (t) => t.category === 'follow' && t.id.toLowerCase().includes('farosbeacon') },
     { key: 'follow', title: 'X Follows', filter: (t) => t.category === 'follow' && !t.id.toLowerCase().includes('farosbeacon') },
-    { key: 'tweet', title: 'Like, Retweet & Quote', filter: (t) => t.category === 'tweet' },
+    { key: 'tweet', title: 'Likes & Retweets', filter: (t) => t.category === 'tweet' && !t.id.toLowerCase().includes('quote') },
     { key: 'telegram', title: 'Telegram', filter: (t) => t.category === 'telegram' },
   ];
 
   const totalEarned = tasks.reduce((acc, t) => acc + (t.claimed ? t.points : 0), 0);
-  const totalPossible = tasks.reduce((acc, t) => acc + t.points, 0);
+  const totalPossible = 820;
 
   const threadSub = submissions.find(s => s.type === 'thread');
+  const quoteSub = submissions.find(s => s.type === 'quote_tweet');
   const videoSub = submissions.find(s => s.type === 'video');
 
   const renderIcon = (t: SocialTask) => t.category === 'telegram' ? '✈' : '𝕏';
