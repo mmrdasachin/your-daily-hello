@@ -5231,7 +5231,7 @@ export default function App() {
       <div className="fixed top-3 left-3 sm:top-4 sm:left-6 z-[60] flex items-center gap-2 sm:gap-5">
         <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActivePage('swap')}>
           <div className="relative">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white rounded-xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] group-hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all duration-700 group-hover:rotate-6">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-neutral-300 dark:bg-white rounded-xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] group-hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all duration-700 group-hover:rotate-6">
               <LogoLD size={20} className="sm:[font-size:24px]" />
             </div>
             <div className="absolute -inset-2 bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
