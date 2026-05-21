@@ -5231,7 +5231,7 @@ export default function App() {
       <div className="fixed top-3 left-3 sm:top-4 sm:left-6 z-[60] flex items-center gap-2 sm:gap-5">
         <div className="flex items-center gap-4 group cursor-pointer" onClick={() => setActivePage('swap')}>
           <div className="relative">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-neutral-300 dark:bg-white rounded-xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] group-hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all duration-700 group-hover:rotate-6">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 bg-white [.light_&]:bg-neutral-300 rounded-xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.2)] group-hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all duration-700 group-hover:rotate-6">
               <LogoLD size={20} className="sm:[font-size:24px]" />
             </div>
             <div className="absolute -inset-2 bg-white/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -5385,7 +5385,7 @@ export default function App() {
       <footer ref={footerRef} className="border-t border-brand-border py-12 relative z-50 bg-brand-bg">
         <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-neutral-300 dark:bg-white flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-7 h-7 rounded-lg bg-white [.light_&]:bg-neutral-300 flex items-center justify-center text-white text-sm font-bold">
               <LogoLD size={14} />
             </div>
             <span className="text-brand-text-muted text-xs font-mono">LitDEX Testnet</span>
