@@ -360,7 +360,7 @@ function RegisterNameModal({ onRegistered }: { onRegistered: (n: string) => void
         {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
         Register · {selectedDuration.price} zkLTC
       </button>
-    </ModalShell>
+    </div>
   );
 }
 
