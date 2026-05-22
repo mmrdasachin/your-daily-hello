@@ -380,7 +380,7 @@ function GlobalFeed({ myName, myAddress }: { myName: string | null; myAddress: s
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
 
   return (
     <div>
