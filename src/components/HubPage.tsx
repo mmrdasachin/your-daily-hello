@@ -301,7 +301,7 @@ function RegisterNameModal({ onClose, onRegistered }: { onClose: () => void; onR
       showSuccess({ title: `✓ ${name}.lit registered!`, rows: [{ label: "Name", value: `${name}.lit` }, { label: "Duration", value: selectedDuration.label }] });
       onRegistered(name);
     } catch (e: any) {
-      showError(e?.shortMessage || e?.message || "Registration failed");
+      showError(e?.message || e?.shortMessage || "Registration failed");
     } finally { setSubmitting(false); }
   };
 
