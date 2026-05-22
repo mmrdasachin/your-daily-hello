@@ -879,6 +879,7 @@ function MarketTab({ myAddress, myName }: { myAddress: string; myName: string | 
 
 // ============ Send zkLTC modal ============
 function SendZkLTCModal({ onClose }: { onClose: () => void }) {
+  const { address: myAddr } = useAccount();
   const [target, setTarget] = useState("");
   const [resolved, setResolved] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
@@ -891,17 +892,38 @@ function SendZkLTCModal({ onClose }: { onClose: () => void }) {
     backendGet(`/hub/name/resolve/${name}`).then((d) => setResolved(d?.address || null)).catch(() => setResolved(null));
   }, [target]);
 
+  const fetchName = async (addr: string): Promise<string | null> => {
+    try {
+      const d = await backendGet(`/hub/name/reverse/${addr}`);
+      return d?.name ? `${d.name}.lit` : null;
+    } catch { return null; }
+  };
+
   const send = async () => {
     if (!target || !amount) return;
     try {
       setSending(true);
       const val = parseEther(amount);
+      let toAddr = target;
       if (target.startsWith("0x")) {
         await writeContract(LIT_TRANSFER, TRANSFER_ABI, "sendToAddress", [target, note], val);
       } else {
+        toAddr = resolved || target;
         await writeContract(LIT_TRANSFER, TRANSFER_ABI, "sendToName", [target.replace(/\.lit$/i, ""), note], val);
       }
-      showSuccess({ title: "zkLTC sent!", rows: [{ label: "To", value: target }, { label: "Amount", value: `${amount} zkLTC` }] });
+      // Re-fetch names independently for sender and receiver
+      const [fromName, toName] = await Promise.all([
+        myAddr ? fetchName(myAddr) : Promise.resolve(null),
+        toAddr.startsWith("0x") ? fetchName(toAddr) : Promise.resolve(target.endsWith(".lit") ? target : `${target}.lit`),
+      ]);
+      showSuccess({
+        title: "zkLTC sent!",
+        rows: [
+          { label: "From", value: fromName || shortAddr(myAddr) },
+          { label: "To", value: toName || shortAddr(toAddr) },
+          { label: "Amount", value: `${amount} zkLTC` },
+        ],
+      });
       onClose();
     } catch (e: any) { showError(e?.shortMessage || e?.message || "Send failed"); }
     finally { setSending(false); }
