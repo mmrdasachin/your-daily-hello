@@ -819,6 +819,8 @@ function MarketTab({ myAddress, myName }: { myAddress: string; myName: string | 
   const listMine = async () => {
     if (!myName || !listPrice) return;
     try {
+      showInfo?.("Approving marketplace...");
+      await writeContract(LIT_NAME_REGISTRY, REGISTRY_ABI, "setOperatorApproval", [LIT_MARKETPLACE, true]);
       await writeContract(LIT_MARKETPLACE, MARKETPLACE_ABI, "listName", [myName, parseEther(listPrice)]);
       showSuccess({ title: "Listed!", rows: [{ label: "Name", value: `${myName}.lit` }, { label: "Price", value: `${listPrice} zkLTC` }] });
       setListPrice(""); setTimeout(load, 1500);
