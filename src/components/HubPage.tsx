@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAccount } from "wagmi";
-import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
+import { ethers, BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Globe, Users, Store, Send, Heart, MessageCircle, Share2, Plus,
@@ -16,6 +16,7 @@ const LIT_MESSENGER = "0xf7675CA40CF72bF8bcD4Acfcd6758600B9175108";
 const LIT_TRANSFER = "0x3ed433c6aEB5Dcc26563A8Ad9CC0Fc8C09a56EBB";
 const BACKEND_URL = "http://155.133.23.14:3005";
 const LITVM_CHAIN_ID = 4441;
+const LITVM_CHAIN_HEX = "0x115D";
 const EXPLORER = "https://liteforge.explorer.caldera.xyz";
 
 // ============ ABIs ============
@@ -62,11 +63,11 @@ const TRANSFER_ABI = [
 
 // Duration enum mapping
 const DURATIONS = [
-  { id: 0, label: "1 Year", price: "0.05" },
-  { id: 1, label: "2 Years", price: "0.09" },
-  { id: 2, label: "5 Years", price: "0.20" },
-  { id: 3, label: "10 Years", price: "0.35" },
-  { id: 4, label: "Forever", price: "0.50" },
+  { id: 1, label: "1 Year", price: "0.05" },
+  { id: 2, label: "2 Years", price: "0.09" },
+  { id: 5, label: "5 Years", price: "0.20" },
+  { id: 10, label: "10 Years", price: "0.35" },
+  { id: 99, label: "Forever", price: "0.50" },
 ];
 
 // ============ Helpers ============
@@ -223,9 +224,10 @@ function RegisterNameModal({ onClose, onRegistered }: { onClose: () => void; onR
   const [name, setName] = useState("");
   const [available, setAvailable] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
-  const [duration, setDuration] = useState<number>(0);
+  const [duration, setDuration] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
   const debounceRef = useRef<number | null>(null);
+  const selectedDuration = DURATIONS.find((d) => d.id === duration) || DURATIONS[0];
 
   useEffect(() => {
     if (!name || name.length < 3) { setAvailable(null); return; }
@@ -249,12 +251,57 @@ function RegisterNameModal({ onClose, onRegistered }: { onClose: () => void; onR
     if (!name || !available) return;
     try {
       setSubmitting(true);
-      const value = parseEther(DURATIONS[duration].price);
-      await writeContract(LIT_NAME_REGISTRY, REGISTRY_ABI, "register", [name, duration], value);
-      showSuccess({ title: "Name registered!", rows: [{ label: "Name", value: `${name}.lit` }, { label: "Duration", value: DURATIONS[duration].label }] });
+      console.log("Starting registration...");
+      const eth = (window as any).ethereum;
+      if (!eth) throw new Error("No wallet detected");
+
+      let chainId = await eth.request({ method: "eth_chainId" });
+      console.log("Chain ID:", chainId);
+      console.log("Name:", name, "Duration:", duration);
+
+      if (chainId?.toLowerCase() !== LITVM_CHAIN_HEX.toLowerCase()) {
+        try {
+          await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: LITVM_CHAIN_HEX }] });
+        } catch (switchError: any) {
+          if (switchError?.code === 4902 || switchError?.data?.originalError?.code === 4902) {
+            await eth.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: LITVM_CHAIN_HEX,
+                chainName: "LitVM LiteForge",
+                rpcUrls: ["https://liteforge.rpc.caldera.xyz/http"],
+                nativeCurrency: { name: "zkLTC", symbol: "zkLTC", decimals: 18 },
+                blockExplorerUrls: ["https://liteforge.explorer.caldera.xyz"],
+              }],
+            });
+          } else {
+            throw switchError;
+          }
+        }
+        chainId = await eth.request({ method: "eth_chainId" });
+        console.log("Chain ID:", chainId);
+        if (chainId?.toLowerCase() !== LITVM_CHAIN_HEX.toLowerCase()) throw new Error("Please switch to LitVM LiteForge");
+      }
+
+      const provider = new ethers.BrowserProvider(eth);
+      const signer = await provider.getSigner();
+      const registry = new ethers.Contract(LIT_NAME_REGISTRY, [
+        "function register(string name, uint8 duration) external payable",
+        "function getPrice(uint8 duration) external view returns (uint256)",
+        "function isAvailable(string name) external view returns (bool)",
+      ], signer);
+      const price = await registry.getPrice(duration);
+      console.log("Price:", price.toString());
+      const stillAvailable = await registry.isAvailable(name);
+      if (!stillAvailable) throw new Error(`${name}.lit is no longer available`);
+      const tx = await registry.register(name, duration, { value: price });
+      console.log("Tx sent:", tx.hash);
+      await tx.wait();
+      console.log("Tx confirmed!");
+      showSuccess({ title: `✓ ${name}.lit registered!`, rows: [{ label: "Name", value: `${name}.lit` }, { label: "Duration", value: selectedDuration.label }] });
       onRegistered(name);
     } catch (e: any) {
-      showError(e?.shortMessage || e?.message || "Registration failed");
+      showError(e?.message || e?.shortMessage || "Registration failed");
     } finally { setSubmitting(false); }
   };
 
@@ -305,7 +352,7 @@ function RegisterNameModal({ onClose, onRegistered }: { onClose: () => void; onR
         className="w-full py-4 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] transition-transform flex items-center justify-center gap-2"
       >
         {submitting ? <Loader2 className="animate-spin" size={16} /> : null}
-        Register · {DURATIONS[duration].price} zkLTC
+        Register · {selectedDuration.price} zkLTC
       </button>
     </ModalShell>
   );
