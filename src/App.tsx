@@ -5199,6 +5199,7 @@ export default function App() {
       case 'checkin': return <CheckinPage />;
       case 'nfts': return <NFTsPage />;
       case 'messenger': return <MessengerPage />;
+      case 'hub': return <HubPage />;
       case 'quests': return <QuestsPage />;
       case 'games': return <GamesPage />;
       case 'faucet': return <FaucetPage />;
