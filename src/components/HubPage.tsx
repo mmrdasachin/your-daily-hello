@@ -309,7 +309,11 @@ function RegisterNameModal({ onRegistered }: { onRegistered: (n: string) => void
   };
 
   return (
-    <ModalShell onClose={onClose}>
+  return (
+    <div
+      className="relative bg-zinc-900 border border-white/10 rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="text-center mb-6">
         <Sparkles className="w-10 h-10 text-white mx-auto mb-3" />
         <h2 className="text-2xl font-black text-white uppercase tracking-tight">Claim Your .lit Name</h2>
