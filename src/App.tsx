@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import NotificationsPanel, { useNotifications } from './components/NotificationsPanel';
 import SuccessCard from './components/SuccessCard';
+import HubPage from './components/HubPage';
 import { addNotif } from './lib/notifications';
 import { 
   ArrowLeftRight, 
@@ -55,7 +56,7 @@ import { litvmChain, errMsg, LITDEX_DEPLOYER_ADDRESS, readTotalDeployed, deployT
 import { showSuccess, showError, showInfo, refreshPoints } from './lib/feedback';
 
 // --- Types ---
-type PageID = 'swap' | 'pool' | 'deploy' | 'points' | 'checkin' | 'nfts' | 'messenger' | 'quests' | 'games' | 'faucet';
+type PageID = 'swap' | 'pool' | 'deploy' | 'points' | 'checkin' | 'nfts' | 'messenger' | 'hub' | 'quests' | 'games' | 'faucet';
 
 interface NavItemProps {
   icon: any;
@@ -5199,6 +5200,7 @@ export default function App() {
       case 'checkin': return <CheckinPage />;
       case 'nfts': return <NFTsPage />;
       case 'messenger': return <MessengerPage />;
+      case 'hub': return <HubPage />;
       case 'quests': return <QuestsPage />;
       case 'games': return <GamesPage />;
       case 'faucet': return <FaucetPage />;
