@@ -9,11 +9,11 @@ import {
 import { showSuccess, showError, showInfo } from "@/lib/feedback";
 
 // ============ CONTRACT ADDRESSES ============
-const LIT_NAME_REGISTRY = "0x46CaA62c1f0f53278063caF2AdAc3ba08DFAad44";
-const HUB_POSTS = "0xf5089FA2484bA445c312556299175Db125067a24";
-const LIT_MARKETPLACE = "0x878aC2cDf105B99f83cdeE2985f6653441D88043";
-const LIT_MESSENGER = "0xf7675CA40CF72bF8bcD4Acfcd6758600B9175108";
-const LIT_TRANSFER = "0x3ed433c6aEB5Dcc26563A8Ad9CC0Fc8C09a56EBB";
+const LIT_NAME_REGISTRY = "0x3E3aEE6d154f881A7418b2dA50c915C34664C2A8";
+const HUB_POSTS = "0x33690545061cF3759350dd2C5A0d1080D9A14D73";
+const LIT_MARKETPLACE = "0x9cc6e4BB66EC19475d9db8082482Eb272cf6eA02";
+const LIT_MESSENGER = "0x69405b51963D592C6CA9350F774045d4E76c89B8";
+const LIT_TRANSFER = "0xaA6154Fa2E03A2dFf6b4Ca85f31334652C2dcF11";
 const BACKEND_URL = "http://155.133.23.14:3005";
 const LITVM_CHAIN_ID = 4441;
 const LITVM_CHAIN_HEX = "0x1159";
@@ -21,13 +21,14 @@ const EXPLORER = "https://liteforge.explorer.caldera.xyz";
 
 // ============ ABIs ============
 const REGISTRY_ABI = [
-  "function register(string name, uint8 duration) payable",
-  "function isAvailable(string name) view returns (bool)",
-  "function resolve(string name) view returns (address)",
-  "function reverseResolve(address) view returns (string)",
-  "function getPrice(uint8 duration) view returns (uint256)",
-  "function setProfile(string name, string avatar, string bio)",
-  "function transfer(string name, address to)",
+  "function register(string name, uint8 duration) external payable",
+  "function isAvailable(string name) external view returns (bool)",
+  "function resolve(string name) external view returns (address)",
+  "function reverseResolve(address wallet) external view returns (string)",
+  "function getPrice(uint8 duration) external view returns (uint256)",
+  "function setProfile(string name, string avatar, string bio) external",
+  "function transfer(string name, address to) external",
+  "function setOperatorApproval(address operator, bool approved) external",
 ];
 const POSTS_ABI = [
   "function createPost(string content, uint256 likeReward, uint256 commentReward) payable returns (uint256)",
@@ -379,7 +380,7 @@ function GlobalFeed({ myName, myAddress }: { myName: string | null; myAddress: s
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, []);
 
   return (
     <div>
@@ -596,6 +597,17 @@ function PrivateTab({ myAddress }: { myAddress: string }) {
   const [adding, setAdding] = useState(false);
   const [activeDM, setActiveDM] = useState<any | null>(null);
 
+  const enrichNames = async (list: any[], addrKey: string, nameKey: string) => {
+    return Promise.all(list.map(async (item) => {
+      const addr = item[addrKey] || item.address || item;
+      if (item[nameKey]) return item;
+      try {
+        const d = await backendGet(`/hub/name/reverse/${addr}`);
+        return { ...item, [nameKey]: d?.name || null };
+      } catch { return item; }
+    }));
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -603,8 +615,14 @@ function PrivateTab({ myAddress }: { myAddress: string }) {
         backendGet(`/hub/messenger/friends/${myAddress}`).catch(() => ({ friends: [] })),
         backendGet(`/hub/messenger/requests/${myAddress}`).catch(() => ({ requests: [] })),
       ]);
-      setFriends(Array.isArray(f?.friends) ? f.friends : []);
-      setRequests(Array.isArray(r?.requests) ? r.requests : []);
+      const rawFriends = Array.isArray(f?.friends) ? f.friends : [];
+      const rawRequests = Array.isArray(r?.requests) ? r.requests : [];
+      const [friendsEnriched, requestsEnriched] = await Promise.all([
+        enrichNames(rawFriends, "address", "name"),
+        enrichNames(rawRequests, "from", "fromName"),
+      ]);
+      setFriends(friendsEnriched);
+      setRequests(requestsEnriched);
     } finally { setLoading(false); }
   };
 
@@ -818,6 +836,8 @@ function MarketTab({ myAddress, myName }: { myAddress: string; myName: string | 
   const listMine = async () => {
     if (!myName || !listPrice) return;
     try {
+      showInfo?.("Approving marketplace...");
+      await writeContract(LIT_NAME_REGISTRY, REGISTRY_ABI, "setOperatorApproval", [LIT_MARKETPLACE, true]);
       await writeContract(LIT_MARKETPLACE, MARKETPLACE_ABI, "listName", [myName, parseEther(listPrice)]);
       showSuccess({ title: "Listed!", rows: [{ label: "Name", value: `${myName}.lit` }, { label: "Price", value: `${listPrice} zkLTC` }] });
       setListPrice(""); setTimeout(load, 1500);
@@ -876,6 +896,7 @@ function MarketTab({ myAddress, myName }: { myAddress: string; myName: string | 
 
 // ============ Send zkLTC modal ============
 function SendZkLTCModal({ onClose }: { onClose: () => void }) {
+  const { address: myAddr } = useAccount();
   const [target, setTarget] = useState("");
   const [resolved, setResolved] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
@@ -888,17 +909,38 @@ function SendZkLTCModal({ onClose }: { onClose: () => void }) {
     backendGet(`/hub/name/resolve/${name}`).then((d) => setResolved(d?.address || null)).catch(() => setResolved(null));
   }, [target]);
 
+  const fetchName = async (addr: string): Promise<string | null> => {
+    try {
+      const d = await backendGet(`/hub/name/reverse/${addr}`);
+      return d?.name ? `${d.name}.lit` : null;
+    } catch { return null; }
+  };
+
   const send = async () => {
     if (!target || !amount) return;
     try {
       setSending(true);
       const val = parseEther(amount);
+      let toAddr = target;
       if (target.startsWith("0x")) {
         await writeContract(LIT_TRANSFER, TRANSFER_ABI, "sendToAddress", [target, note], val);
       } else {
+        toAddr = resolved || target;
         await writeContract(LIT_TRANSFER, TRANSFER_ABI, "sendToName", [target.replace(/\.lit$/i, ""), note], val);
       }
-      showSuccess({ title: "zkLTC sent!", rows: [{ label: "To", value: target }, { label: "Amount", value: `${amount} zkLTC` }] });
+      // Re-fetch names independently for sender and receiver
+      const [fromName, toName] = await Promise.all([
+        myAddr ? fetchName(myAddr) : Promise.resolve(null),
+        toAddr.startsWith("0x") ? fetchName(toAddr) : Promise.resolve(target.endsWith(".lit") ? target : `${target}.lit`),
+      ]);
+      showSuccess({
+        title: "zkLTC sent!",
+        rows: [
+          { label: "From", value: fromName || shortAddr(myAddr) },
+          { label: "To", value: toName || shortAddr(toAddr) },
+          { label: "Amount", value: `${amount} zkLTC` },
+        ],
+      });
       onClose();
     } catch (e: any) { showError(e?.shortMessage || e?.message || "Send failed"); }
     finally { setSending(false); }
