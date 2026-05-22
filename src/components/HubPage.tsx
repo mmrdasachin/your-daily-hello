@@ -597,6 +597,17 @@ function PrivateTab({ myAddress }: { myAddress: string }) {
   const [adding, setAdding] = useState(false);
   const [activeDM, setActiveDM] = useState<any | null>(null);
 
+  const enrichNames = async (list: any[], addrKey: string, nameKey: string) => {
+    return Promise.all(list.map(async (item) => {
+      const addr = item[addrKey] || item.address || item;
+      if (item[nameKey]) return item;
+      try {
+        const d = await backendGet(`/hub/name/reverse/${addr}`);
+        return { ...item, [nameKey]: d?.name || null };
+      } catch { return item; }
+    }));
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -604,8 +615,14 @@ function PrivateTab({ myAddress }: { myAddress: string }) {
         backendGet(`/hub/messenger/friends/${myAddress}`).catch(() => ({ friends: [] })),
         backendGet(`/hub/messenger/requests/${myAddress}`).catch(() => ({ requests: [] })),
       ]);
-      setFriends(Array.isArray(f?.friends) ? f.friends : []);
-      setRequests(Array.isArray(r?.requests) ? r.requests : []);
+      const rawFriends = Array.isArray(f?.friends) ? f.friends : [];
+      const rawRequests = Array.isArray(r?.requests) ? r.requests : [];
+      const [friendsEnriched, requestsEnriched] = await Promise.all([
+        enrichNames(rawFriends, "address", "name"),
+        enrichNames(rawRequests, "from", "fromName"),
+      ]);
+      setFriends(friendsEnriched);
+      setRequests(requestsEnriched);
     } finally { setLoading(false); }
   };
 
