@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/reui-spinner";
@@ -50,6 +50,13 @@ export function MintCard() {
 
   const [passIndex, setPassIndex] = useState(0);
   const [loadedPasses, setLoadedPasses] = useState<string[]>([]);
+  const markPassLoaded = useCallback(
+    (label: string) =>
+      setLoadedPasses((prev) =>
+        prev.includes(label) ? prev : [...prev, label],
+      ),
+    [],
+  );
   const passesReady = loadedPasses.length >= PASS_CARD_IMAGES.length;
   useEffect(() => {
     if (!passesReady) return;
@@ -193,16 +200,12 @@ export function MintCard() {
               key={pass.label}
               src={pass.src}
               alt={`Litdex pass card — ${pass.label}`}
-              onLoad={() =>
-                setLoadedPasses((prev) =>
-                  prev.includes(pass.label) ? prev : [...prev, pass.label],
-                )
-              }
-              onError={() =>
-                setLoadedPasses((prev) =>
-                  prev.includes(pass.label) ? prev : [...prev, pass.label],
-                )
-              }
+              ref={(el) => {
+                // SSR: image may finish before hydration attaches onLoad.
+                if (el && el.complete) markPassLoaded(pass.label);
+              }}
+              onLoad={() => markPassLoaded(pass.label)}
+              onError={() => markPassLoaded(pass.label)}
               className={`absolute inset-0 size-full object-cover transition-opacity duration-[900ms] ease-in-out ${
                 i === passIndex && passesReady ? "z-10 opacity-100" : "z-0 opacity-0"
               }`}
