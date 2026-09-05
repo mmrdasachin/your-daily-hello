@@ -1,3 +1,8 @@
+import passCommon from "@/assets/pass-cards/common.webp";
+import passRare from "@/assets/pass-cards/rare.webp";
+import passEpic from "@/assets/pass-cards/epic.webp";
+import passLegend from "@/assets/pass-cards/legend.webp";
+
 const GH_BASE =
   "https://raw.githubusercontent.com/0xDarkSeidBull/nft/main/files/boardpass";
 
@@ -10,20 +15,8 @@ export const EPIC_PFP = `${GH_BASE}/epfp.png`;
 export const LEGEND_PFP = `${GH_BASE}/lpfp.png`;
 
 export const PASS_CARD_IMAGES = [
-  {
-    src: `${GH_BASE}/LitDex%20Pass%20Card%20Common-selection.png`,
-    label: "Common",
-  },
-  {
-    src: `${GH_BASE}/LitDex%20Pass%20Card%20Rare-selection.png`,
-    label: "Rare",
-  },
-  {
-    src: `${GH_BASE}/LitDex%20Pass%20Card%20Epic-selection.png`,
-    label: "Epic",
-  },
-  {
-    src: `${GH_BASE}/LitDex%20Pass%20Card%20Legend-selection.png`,
-    label: "Legend",
-  },
+  { src: passCommon, label: "Common" },
+  { src: passRare, label: "Rare" },
+  { src: passEpic, label: "Epic" },
+  { src: passLegend, label: "Legend" },
 ];
