@@ -21,7 +21,6 @@ import {
   nftContract,
   parseWalletError,
   usdtContract,
-  voucherCategoryId,
   type Voucher,
 } from "@/lib/litdex";
 
@@ -159,12 +158,7 @@ export function MintCard() {
         const voucher = vouchers[i]!;
         setStatus(vouchers.length > 1 ? `Minting ${i + 1}/${vouchers.length}…` : "Minting…");
         const tx = await nftContract(signer).mintWithVoucher(
-          [
-            voucherCategoryId(voucher.category),
-            voucher.wallet,
-            voucher.discountBps,
-            voucher.nonce,
-          ],
+          [voucher.wallet, voucher.discountBps, voucher.nonce],
           voucher.signature,
         );
         await tx.wait();
