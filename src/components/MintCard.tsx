@@ -50,6 +50,13 @@ export function MintCard() {
 
   const [passIndex, setPassIndex] = useState(0);
   const [loadedPasses, setLoadedPasses] = useState<string[]>([]);
+  const markPassLoaded = useCallback(
+    (label: string) =>
+      setLoadedPasses((prev) =>
+        prev.includes(label) ? prev : [...prev, label],
+      ),
+    [],
+  );
   const passesReady = loadedPasses.length >= PASS_CARD_IMAGES.length;
   useEffect(() => {
     if (!passesReady) return;
