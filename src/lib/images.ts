@@ -1,3 +1,8 @@
+import passCommon from "@/assets/pass-cards/common.webp";
+import passRare from "@/assets/pass-cards/rare.webp";
+import passEpic from "@/assets/pass-cards/epic.webp";
+import passLegend from "@/assets/pass-cards/legend.webp";
+
 const GH_BASE =
   "https://raw.githubusercontent.com/0xDarkSeidBull/nft/main/files/boardpass";
 
