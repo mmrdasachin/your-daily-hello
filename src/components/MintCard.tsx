@@ -99,30 +99,43 @@ export function MintCard() {
   })();
 
   const [qtyByCategory, setQtyByCategory] = useState<Record<string, number>>({});
-  const qtyFor = (category: string) => qtyByCategory[category] ?? 1;
+  const qtyFor = (category: string) => qtyByCategory[category] ?? 0;
   const setQty = (category: string, next: number, max: number) =>
     setQtyByCategory((prev) => ({
       ...prev,
-      [category]: Math.max(1, Math.min(next, max)),
+      [category]: Math.max(0, Math.min(next, max)),
     }));
 
+  const selectedVouchers = voucherGroups.flatMap(([category, vouchers]) =>
+    vouchers.slice(0, Math.min(qtyFor(category), vouchers.length)),
+  );
+  const selectedCost =
+    price !== null
+      ? selectedVouchers.reduce(
+          (sum, v) => sum + discountedPrice(price, v.discountBps),
+          0n,
+        )
+      : null;
 
+  const remainingPublic = Math.max(0, WALLET_LIMIT - ownedCount);
+  const [publicQty, setPublicQty] = useState(1);
+  const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
 
-
-  async function handleMint() {
-    if (!address || price === null) return;
+  async function handleMint(quantity: number) {
+    if (!address || price === null || quantity < 1) return;
+    const totalCost = price * BigInt(quantity);
     try {
       const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
-      if (allowance < price) {
+      if (allowance < totalCost) {
         setStatus("Approving…");
         const usdt = usdtContract(signer);
-        const approveTx = await usdt.approve(NFT_ADDRESS, price);
+        const approveTx = await usdt.approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
       setStatus("Minting…");
       const nft = nftContract(signer);
-      const tx = await nft.mint();
+      const tx = await nft.mintBatch(quantity);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
@@ -132,7 +145,9 @@ export function MintCard() {
       }
       await refreshAll();
       await refetchStatus();
-      toast.success("NFT minted");
+      toast.success(
+        quantity > 1 ? `${quantity} NFTs minted` : "NFT minted",
+      );
     } catch (err) {
       toast.error(parseWalletError(err, "Mint failed, try again."));
     } finally {
@@ -154,15 +169,12 @@ export function MintCard() {
         const approveTx = await usdtContract(signer).approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
-      for (let i = 0; i < vouchers.length; i++) {
-        const voucher = vouchers[i]!;
-        setStatus(vouchers.length > 1 ? `Minting ${i + 1}/${vouchers.length}…` : "Minting…");
-        const tx = await nftContract(signer).mintWithVoucher(
-          [voucher.wallet, voucher.discountBps, voucher.nonce],
-          voucher.signature,
-        );
-        await tx.wait();
-      }
+      setStatus("Minting…");
+      const tx = await nftContract(signer).mintWithVouchersBatch(
+        vouchers.map((v) => [v.wallet, v.discountBps, v.nonce]),
+        vouchers.map((v) => v.signature),
+      );
+      await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
         if (next > 1n) setMintedId(next - 1n);
@@ -172,7 +184,7 @@ export function MintCard() {
       await refreshAll();
       await Promise.all([refetchStatus(), refetchVouchers()]);
       toast.success(
-        `${vouchers.length} ${vouchers[0]!.category} minted with ${discountLabel(vouchers[0]!.discountBps)} off`,
+        `${vouchers.length} ${vouchers.length === 1 ? "NFT" : "NFTs"} minted with whitelist discounts`,
       );
     } catch (err) {
       toast.error(parseWalletError(err, "Voucher mint failed, try again."));
