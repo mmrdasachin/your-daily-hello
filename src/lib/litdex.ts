@@ -77,6 +77,8 @@ export const NFT_ABI = [
   "function mintBatchUSDC(uint256 quantity) external",
   "function mintWithVoucher((address wallet,uint256 discountBps,bytes32 nonce) voucher, bytes signature) external",
   "function mintWithVouchersBatch((address wallet,uint256 discountBps,bytes32 nonce)[] vouchers, bytes[] signatures) external",
+  "function mintWithVoucherUSDC((address wallet,uint256 discountBps,bytes32 nonce) voucher, bytes signature) external",
+  "function mintWithVouchersBatchUSDC((address wallet,uint256 discountBps,bytes32 nonce)[] vouchers, bytes[] signatures) external",
   "function levelUp(uint256 tokenId) external",
   "function promote(uint256 tokenId) external",
   "function repair(uint256 tokenId) external",
