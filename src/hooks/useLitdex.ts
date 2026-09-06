@@ -210,7 +210,7 @@ export function useNftArtwork(tokenId: bigint | undefined) {
     enabled: tokenId !== undefined,
     retry: false,
     staleTime: Infinity,
-    placeholderData: tokenId !== undefined ? artworkUrl(tokenId) : undefined,
+    placeholderData: tokenId !== undefined ? artworkUrl(tokenId) : null,
     queryFn: async (): Promise<string | null> => {
       const uri = await nftRead().tokenURI(tokenId!);
       const httpUri = uri.startsWith("ipfs://")

@@ -17,7 +17,7 @@ export function LoadingImage({
 }: {
   src: string;
   alt: string;
-  placeholderSrc?: string;
+  placeholderSrc?: string | undefined;
   className?: string;
   wrapperClassName?: string;
   spinnerClassName?: string;
