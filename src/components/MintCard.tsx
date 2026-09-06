@@ -463,7 +463,7 @@ export function MintCard() {
                               price !== null
                                 ? formatUsdt(price * BigInt(publicQtyClamped))
                                 : "…"
-                            } USDT`)}
+                            } ${payToken}`)}
                   </span>
                 </button>
               </div>
