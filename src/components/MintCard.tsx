@@ -299,6 +299,44 @@ export function MintCard() {
               {voucherData.totalVouchers === 1 ? "" : "s"} available
             </p>
 
+            <div className="mt-3 flex items-center gap-1 rounded-full bg-[#F4F4F2] p-1 self-start">
+              <span className="pl-2 font-mono text-[10px] font-bold uppercase tracking-wide text-black/50">
+                Pay with
+              </span>
+              {(["USDT", "USDC"] as const).map((token) => (
+                <button
+                  key={token}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setVoucherPayToken(token)}
+                  className={`rounded-full px-3 py-1 font-mono text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                    voucherPayToken === token
+                      ? "bg-[#0038FF] text-white"
+                      : "text-black/60 hover:text-black"
+                  }`}
+                >
+                  {token}
+                </button>
+              ))}
+            </div>
+
+            {priorityVoucher && price !== null && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border-2 border-[#CCFF00] bg-black px-4 py-3">
+                <p className="btn-text text-sm font-bold uppercase text-white">
+                  You are eligible to mint at $
+                  {formatUsdt(discountedPrice(price, priorityVoucher.discountBps))}{" "}
+                  {voucherPayToken}
+                </p>
+                <button
+                  disabled={!correctNetwork || busy}
+                  onClick={() => void handleVoucherMint([priorityVoucher])}
+                  className="btn fx-9 btn-pill btn-blue"
+                >
+                  <span className="btn-label">{status ?? "Mint"}</span>
+                </button>
+              </div>
+            )}
+
             <div className="mt-4 flex flex-col gap-2">
               {voucherGroups.map(([category, vouchers]) => {
                 const qty = Math.min(qtyFor(category), vouchers.length);
