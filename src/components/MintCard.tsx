@@ -129,6 +129,7 @@ export function MintCard() {
   const [publicQty, setPublicQty] = useState(1);
   const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
   const [payToken, setPayToken] = useState<PayToken>("USDT");
+  const [voucherPayToken, setVoucherPayToken] = useState<PayToken>("USDT");
 
   async function handleMint(quantity: number) {
     if (!address || price === null || quantity < 1) return;
@@ -174,18 +175,31 @@ export function MintCard() {
       0n,
     );
     try {
-      const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
+      const token = payTokenContract(voucherPayToken, readProvider());
+      const allowance = await token.allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
       if (allowance < totalCost) {
         setStatus("Approving…");
-        const approveTx = await usdtContract(signer).approve(NFT_ADDRESS, totalCost);
+        const approveTx = await payTokenContract(voucherPayToken, signer).approve(
+          NFT_ADDRESS,
+          totalCost,
+        );
         await approveTx.wait();
       }
       setStatus("Minting…");
-      const tx = await nftContract(signer).mintWithVouchersBatch(
-        vouchers.map((v) => [v.wallet, v.discountBps, v.nonce]),
-        vouchers.map((v) => v.signature),
+      const nft = nftContract(signer);
+      const structs = vouchers.map(
+        (v) => [v.wallet, v.discountBps, v.nonce] as [string, number, string],
       );
+      const signatures = vouchers.map((v) => v.signature);
+      const tx =
+        vouchers.length === 1
+          ? voucherPayToken === "USDC"
+            ? await nft.mintWithVoucherUSDC(structs[0]!, signatures[0]!)
+            : await nft.mintWithVoucher(structs[0]!, signatures[0]!)
+          : voucherPayToken === "USDC"
+            ? await nft.mintWithVouchersBatchUSDC(structs, signatures)
+            : await nft.mintWithVouchersBatch(structs, signatures);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
