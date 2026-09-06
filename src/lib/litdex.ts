@@ -41,8 +41,15 @@ export const BASE_SEPOLIA_CHAIN_ID = BASE_CHAIN_ID;
 export const BASE_SEPOLIA_HEX = BASE_CHAIN_HEX;
 
 export const USDT_ADDRESS = "0x02b8b8090dFFb61dE134A9e639577E9c153Ac871";
+export const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 export const POINTS_ADDRESS = "0x904b369740813dc56dE2fc457F60F832354427e0";
 export const NFT_ADDRESS = "0xd7E5A73D66D202CD211290536eab5096E8a5114F";
+
+export type PayToken = "USDT" | "USDC";
+export const PAY_TOKEN_ADDRESS: Record<PayToken, string> = {
+  USDT: USDT_ADDRESS,
+  USDC: USDC_ADDRESS,
+};
 
 export const API_BASE = "https://litdex-nft.test-hub.xyz";
 
@@ -66,6 +73,8 @@ export const POINTS_ABI = [
 export const NFT_ABI = [
   "function mint() external",
   "function mintBatch(uint256 quantity) external",
+  "function mintUSDC() external",
+  "function mintBatchUSDC(uint256 quantity) external",
   "function mintWithVoucher((address wallet,uint256 discountBps,bytes32 nonce) voucher, bytes signature) external",
   "function mintWithVouchersBatch((address wallet,uint256 discountBps,bytes32 nonce)[] vouchers, bytes[] signatures) external",
   "function levelUp(uint256 tokenId) external",
@@ -166,6 +175,8 @@ type Tx = ethers.ContractTransactionResponse;
 export interface NftContract extends ethers.BaseContract {
   mint(): Promise<Tx>;
   mintBatch(quantity: number): Promise<Tx>;
+  mintUSDC(): Promise<Tx>;
+  mintBatchUSDC(quantity: number): Promise<Tx>;
   mintWithVoucher(
     voucher: [string, number, string],
     signature: string,
