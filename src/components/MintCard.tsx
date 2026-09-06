@@ -10,7 +10,6 @@ import {
   useNftArtwork,
   useRefreshAll,
   useVouchers,
-  usdtRead,
 } from "@/hooks/useLitdex";
 import { useWallet } from "@/hooks/useWallet";
 import { PASS_CARD_IMAGES } from "@/lib/images";
@@ -22,7 +21,6 @@ import {
   nftContract,
   parseWalletError,
   payTokenContract,
-  usdtContract,
   type PayToken,
   type Voucher,
 } from "@/lib/litdex";
@@ -92,10 +90,15 @@ export function MintCard() {
       ? (mintStatus.totalMinted / mintStatus.supplyCap) * 100
       : 0;
 
+  const priorityVouchers = (voucherData?.vouchers ?? []).filter(
+    (v) => v.category.toUpperCase() === "PRIORITY",
+  );
+  const priorityVoucher = priorityVouchers[0] ?? null;
   const voucherGroups = (() => {
     const map = new Map<string, Voucher[]>();
     for (const v of voucherData?.vouchers ?? []) {
       const key = v.category.toUpperCase();
+      if (key === "PRIORITY") continue;
       map.set(key, [...(map.get(key) ?? []), v]);
     }
     return [...map.entries()];
@@ -124,6 +127,7 @@ export function MintCard() {
   const [publicQty, setPublicQty] = useState(1);
   const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
   const [payToken, setPayToken] = useState<PayToken>("USDT");
+  const [voucherPayToken, setVoucherPayToken] = useState<PayToken>("USDT");
 
   async function handleMint(quantity: number) {
     if (!address || price === null || quantity < 1) return;
@@ -169,18 +173,31 @@ export function MintCard() {
       0n,
     );
     try {
-      const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
+      const token = payTokenContract(voucherPayToken, readProvider());
+      const allowance = await token.allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
       if (allowance < totalCost) {
         setStatus("Approving…");
-        const approveTx = await usdtContract(signer).approve(NFT_ADDRESS, totalCost);
+        const approveTx = await payTokenContract(voucherPayToken, signer).approve(
+          NFT_ADDRESS,
+          totalCost,
+        );
         await approveTx.wait();
       }
       setStatus("Minting…");
-      const tx = await nftContract(signer).mintWithVouchersBatch(
-        vouchers.map((v) => [v.wallet, v.discountBps, v.nonce]),
-        vouchers.map((v) => v.signature),
+      const nft = nftContract(signer);
+      const structs = vouchers.map(
+        (v) => [v.wallet, v.discountBps, v.nonce] as [string, number, string],
       );
+      const signatures = vouchers.map((v) => v.signature);
+      const tx =
+        vouchers.length === 1
+          ? voucherPayToken === "USDC"
+            ? await nft.mintWithVoucherUSDC(structs[0]!, signatures[0]!)
+            : await nft.mintWithVoucher(structs[0]!, signatures[0]!)
+          : voucherPayToken === "USDC"
+            ? await nft.mintWithVouchersBatchUSDC(structs, signatures)
+            : await nft.mintWithVouchersBatch(structs, signatures);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
@@ -280,6 +297,44 @@ export function MintCard() {
               {voucherData.totalVouchers === 1 ? "" : "s"} available
             </p>
 
+            <div className="mt-3 flex items-center gap-1 rounded-full bg-[#F4F4F2] p-1 self-start">
+              <span className="pl-2 font-mono text-[10px] font-bold uppercase tracking-wide text-black/50">
+                Pay with
+              </span>
+              {(["USDT", "USDC"] as const).map((token) => (
+                <button
+                  key={token}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setVoucherPayToken(token)}
+                  className={`rounded-full px-3 py-1 font-mono text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                    voucherPayToken === token
+                      ? "bg-[#0038FF] text-white"
+                      : "text-black/60 hover:text-black"
+                  }`}
+                >
+                  {token}
+                </button>
+              ))}
+            </div>
+
+            {priorityVoucher && price !== null && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border-2 border-[#CCFF00] bg-black px-4 py-3">
+                <p className="btn-text text-sm font-bold uppercase text-white">
+                  You are eligible to mint at $
+                  {formatUsdt(discountedPrice(price, priorityVoucher.discountBps))}{" "}
+                  {voucherPayToken}
+                </p>
+                <button
+                  disabled={!correctNetwork || busy}
+                  onClick={() => void handleVoucherMint([priorityVoucher])}
+                  className="btn fx-9 btn-pill btn-blue"
+                >
+                  <span className="btn-label">{status ?? "Mint"}</span>
+                </button>
+              </div>
+            )}
+
             <div className="mt-4 flex flex-col gap-2">
               {voucherGroups.map(([category, vouchers]) => {
                 const qty = Math.min(qtyFor(category), vouchers.length);
@@ -296,7 +351,7 @@ export function MintCard() {
                       <p className="mt-0.5 font-mono text-[11px] font-bold uppercase tracking-wide text-[#0038FF]">
                         {discountLabel(first.discountBps)} off
                         {price !== null
-                          ? ` · $${formatUsdt(discountedPrice(price, first.discountBps))} USDT`
+                          ? ` · $${formatUsdt(discountedPrice(price, first.discountBps))} ${voucherPayToken}`
                           : ""}
                       </p>
                     </div>
@@ -341,10 +396,10 @@ export function MintCard() {
               <span className="btn-label">
                 {selectedVouchers.length === 0
                   ? "Select vouchers to mint"
-                  : (status ??
+                    : (status ??
                     `Mint ${selectedVouchers.length} in one transaction · $${
                       selectedCost !== null ? formatUsdt(selectedCost) : "…"
-                    } USDT`)}
+                    } ${voucherPayToken}`)}
               </span>
             </button>
           </div>
