@@ -297,7 +297,7 @@ export function MintCard() {
                       <div className="flex items-center gap-2 rounded-full bg-white px-2 py-1">
                         <button
                           aria-label={`Decrease ${category} quantity`}
-                          disabled={qty <= 1 || busy}
+                          disabled={qty <= 0 || busy}
                           onClick={() => setQty(category, qty - 1, vouchers.length)}
                           className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
                         >
@@ -315,18 +315,31 @@ export function MintCard() {
                           <Plus className="size-3.5" />
                         </button>
                       </div>
-                      <button
-                        disabled={!address || !correctNetwork || busy || price === null}
-                        onClick={() => void handleVoucherMint(vouchers.slice(0, qty))}
-                        className="btn fx-9 btn-pill btn-blue"
-                      >
-                        <span className="btn-label">Mint</span>
-                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            <button
+              disabled={
+                !correctNetwork ||
+                busy ||
+                price === null ||
+                selectedVouchers.length === 0
+              }
+              onClick={() => void handleVoucherMint(selectedVouchers)}
+              className="btn fx-9 btn-pill btn-blue mt-4 w-full"
+            >
+              <span className="btn-label">
+                {selectedVouchers.length === 0
+                  ? "Select vouchers to mint"
+                  : (status ??
+                    `Mint ${selectedVouchers.length} in one transaction · $${
+                      selectedCost !== null ? formatUsdt(selectedCost) : "…"
+                    } USDT`)}
+              </span>
+            </button>
           </div>
         )}
 
