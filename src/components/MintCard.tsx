@@ -92,10 +92,15 @@ export function MintCard() {
       ? (mintStatus.totalMinted / mintStatus.supplyCap) * 100
       : 0;
 
+  const priorityVouchers = (voucherData?.vouchers ?? []).filter(
+    (v) => v.category.toUpperCase() === "PRIORITY",
+  );
+  const priorityVoucher = priorityVouchers[0] ?? null;
   const voucherGroups = (() => {
     const map = new Map<string, Voucher[]>();
     for (const v of voucherData?.vouchers ?? []) {
       const key = v.category.toUpperCase();
+      if (key === "PRIORITY") continue;
       map.set(key, [...(map.get(key) ?? []), v]);
     }
     return [...map.entries()];
