@@ -10,7 +10,6 @@ import {
   useNftArtwork,
   useRefreshAll,
   useVouchers,
-  usdtRead,
 } from "@/hooks/useLitdex";
 import { useWallet } from "@/hooks/useWallet";
 import { PASS_CARD_IMAGES } from "@/lib/images";
@@ -22,7 +21,6 @@ import {
   nftContract,
   parseWalletError,
   payTokenContract,
-  usdtContract,
   type PayToken,
   type Voucher,
 } from "@/lib/litdex";
