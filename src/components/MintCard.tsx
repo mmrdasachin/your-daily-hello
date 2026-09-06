@@ -123,22 +123,26 @@ export function MintCard() {
   const remainingPublic = Math.max(0, WALLET_LIMIT - ownedCount);
   const [publicQty, setPublicQty] = useState(1);
   const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
+  const [payToken, setPayToken] = useState<PayToken>("USDT");
 
   async function handleMint(quantity: number) {
     if (!address || price === null || quantity < 1) return;
     const totalCost = price * BigInt(quantity);
     try {
-      const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
+      const token = payTokenContract(payToken, readProvider());
+      const allowance = await token.allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
       if (allowance < totalCost) {
         setStatus("Approving…");
-        const usdt = usdtContract(signer);
-        const approveTx = await usdt.approve(NFT_ADDRESS, totalCost);
+        const approveTx = await payTokenContract(payToken, signer).approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
       setStatus("Minting…");
       const nft = nftContract(signer);
-      const tx = await nft.mintBatch(quantity);
+      const tx =
+        payToken === "USDC"
+          ? await nft.mintBatchUSDC(quantity)
+          : await nft.mintBatch(quantity);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
