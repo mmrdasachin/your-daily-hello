@@ -187,6 +187,14 @@ export interface NftContract extends ethers.BaseContract {
     vouchers: [string, number, string][],
     signatures: string[],
   ): Promise<Tx>;
+  mintWithVoucherUSDC(
+    voucher: [string, number, string],
+    signature: string,
+  ): Promise<Tx>;
+  mintWithVouchersBatchUSDC(
+    vouchers: [string, number, string][],
+    signatures: string[],
+  ): Promise<Tx>;
   levelUp(tokenId: bigint): Promise<Tx>;
   promote(tokenId: bigint): Promise<Tx>;
   repair(tokenId: bigint): Promise<Tx>;
