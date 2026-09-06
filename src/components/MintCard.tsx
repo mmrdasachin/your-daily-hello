@@ -388,31 +388,58 @@ export function MintCard() {
                   {started ? "MINTING NOW" : "NOT STARTED"}
                 </p>
               </div>
-              <button
-                disabled={
-                  !correctNetwork ||
-                  soldOut ||
-                  busy ||
-                  !mintStatus ||
-                  !started ||
-                  limitReached
-                }
-                onClick={() => void handleMint()}
-                className="btn fx-9 btn-pill btn-blue"
-              >
-                <span className="btn-label">
-                  {soldOut
-                    ? "Sold out"
-                    : !started
-                      ? countdown
-                        ? `Starts in ${countdown}`
-                        : "Not started"
-                      : limitReached
-                        ? "Limit reached"
-                        : (status ??
-                          `Mint now · $${price !== null ? formatUsdt(price) : "…"} USDT`)}
-                </span>
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-full bg-[#F4F4F2] px-2 py-1">
+                  <button
+                    aria-label="Decrease public mint quantity"
+                    disabled={publicQtyClamped <= 1 || busy}
+                    onClick={() => setPublicQty(publicQtyClamped - 1)}
+                    className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
+                  >
+                    <Minus className="size-3.5" />
+                  </button>
+                  <span className="min-w-5 text-center font-mono text-sm font-bold text-black">
+                    {publicQtyClamped}
+                  </span>
+                  <button
+                    aria-label="Increase public mint quantity"
+                    disabled={publicQtyClamped >= remainingPublic || busy}
+                    onClick={() => setPublicQty(publicQtyClamped + 1)}
+                    className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+                <button
+                  disabled={
+                    !correctNetwork ||
+                    soldOut ||
+                    busy ||
+                    !mintStatus ||
+                    !started ||
+                    limitReached
+                  }
+                  onClick={() => void handleMint(publicQtyClamped)}
+                  className="btn fx-9 btn-pill btn-blue"
+                >
+                  <span className="btn-label">
+                    {soldOut
+                      ? "Sold out"
+                      : !started
+                        ? countdown
+                          ? `Starts in ${countdown}`
+                          : "Not started"
+                        : limitReached
+                          ? "Limit reached"
+                          : (status ??
+                            `Mint ${publicQtyClamped} · $${
+                              price !== null
+                                ? formatUsdt(price * BigInt(publicQtyClamped))
+                                : "…"
+                            } USDT`)}
+                  </span>
+                </button>
+              </div>
             </div>
             <p className="mt-3 text-right font-mono text-[11px] font-bold tracking-wide text-black/40">
               LIMIT {WALLET_LIMIT} PER WALLET · YOU OWN {ownedCount}
