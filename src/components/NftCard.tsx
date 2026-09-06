@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LoadingImage } from "@/components/LoadingImage";
 import { Spinner } from "@/components/ui/reui-spinner";
-import { COMMON_PFP, EPIC_PFP, LEGEND_PFP, RARE_PFP } from "@/lib/images";
+import { COMMON_PFP, EPIC_PFP, LEGEND_PFP, PASS_CARD_IMAGES, RARE_PFP } from "@/lib/images";
 import {
   usdtRead,
   useBasePoints,
@@ -167,6 +167,8 @@ export function NftCard({ nft, compact = false }: { nft: OwnedNft; compact?: boo
       ) : artwork ? (
         <LoadingImage
           src={artwork}
+          eager
+          placeholderSrc={PASS_CARD_IMAGES[nft.rarity]?.src}
           alt={`Litdex champion #${nft.tokenId.toString()}`}
           wrapperClassName="aspect-square w-full overflow-hidden rounded-3xl border-[3px] border-white bg-black/5 shadow-md"
           className="size-full object-contain"
