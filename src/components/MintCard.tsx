@@ -353,7 +353,7 @@ export function MintCard() {
                       <p className="mt-0.5 font-mono text-[11px] font-bold uppercase tracking-wide text-[#0038FF]">
                         {discountLabel(first.discountBps)} off
                         {price !== null
-                          ? ` · $${formatUsdt(discountedPrice(price, first.discountBps))} USDT`
+                          ? ` · $${formatUsdt(discountedPrice(price, first.discountBps))} ${voucherPayToken}`
                           : ""}
                       </p>
                     </div>
