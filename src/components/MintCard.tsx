@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/reui-spinner";
 
 import {
   nftRead,
+  readProvider,
   useMintStatus,
   useNftArtwork,
   useRefreshAll,
@@ -20,7 +21,9 @@ import {
   formatUsdt,
   nftContract,
   parseWalletError,
+  payTokenContract,
   usdtContract,
+  type PayToken,
   type Voucher,
 } from "@/lib/litdex";
 
@@ -120,22 +123,26 @@ export function MintCard() {
   const remainingPublic = Math.max(0, WALLET_LIMIT - ownedCount);
   const [publicQty, setPublicQty] = useState(1);
   const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
+  const [payToken, setPayToken] = useState<PayToken>("USDT");
 
   async function handleMint(quantity: number) {
     if (!address || price === null || quantity < 1) return;
     const totalCost = price * BigInt(quantity);
     try {
-      const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
+      const token = payTokenContract(payToken, readProvider());
+      const allowance = await token.allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
       if (allowance < totalCost) {
         setStatus("Approving…");
-        const usdt = usdtContract(signer);
-        const approveTx = await usdt.approve(NFT_ADDRESS, totalCost);
+        const approveTx = await payTokenContract(payToken, signer).approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
       setStatus("Minting…");
       const nft = nftContract(signer);
-      const tx = await nft.mintBatch(quantity);
+      const tx =
+        payToken === "USDC"
+          ? await nft.mintBatchUSDC(quantity)
+          : await nft.mintBatch(quantity);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
@@ -381,8 +388,28 @@ export function MintCard() {
               <div>
                 <p className="btn-text font-bold text-black">Public stage</p>
                 <p className="mt-1 font-mono text-sm font-bold text-black">
-                  ${price !== null ? formatUsdt(price) : "…"} USDT
+                  ${price !== null ? formatUsdt(price) : "…"} {payToken}
                 </p>
+                <div className="mt-2 flex items-center gap-1 rounded-full bg-[#F4F4F2] p-1">
+                  <span className="pl-2 font-mono text-[10px] font-bold uppercase tracking-wide text-black/50">
+                    Pay with
+                  </span>
+                  {(["USDT", "USDC"] as const).map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setPayToken(token)}
+                      className={`rounded-full px-3 py-1 font-mono text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                        payToken === token
+                          ? "bg-[#0038FF] text-white"
+                          : "text-black/60 hover:text-black"
+                      }`}
+                    >
+                      {token}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-1 flex items-center gap-1.5 font-mono text-[11px] font-bold text-[#0038FF]">
                   <span className="inline-block size-2 rounded-full bg-[#CCFF00] ring-2 ring-[#0038FF]/30" />
                   {started ? "MINTING NOW" : "NOT STARTED"}
@@ -436,7 +463,7 @@ export function MintCard() {
                               price !== null
                                 ? formatUsdt(price * BigInt(publicQtyClamped))
                                 : "…"
-                            } USDT`)}
+                            } ${payToken}`)}
                   </span>
                 </button>
               </div>
