@@ -3,7 +3,7 @@ import { Menu } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/LoadingImage";
 import { NftCard } from "@/components/NftCard";
-import { useOwnedNfts } from "@/hooks/useLitdex";
+import { prefetchArtwork, useOwnedNfts } from "@/hooks/useLitdex";
 import { useWallet } from "@/hooks/useWallet";
 import type { OwnedNft } from "@/lib/litdex";
 
@@ -84,6 +84,12 @@ export function NftSection() {
     list.sort((a, b) => (a.tokenId > b.tokenId ? -1 : a.tokenId < b.tokenId ? 1 : 0));
     return list;
   }, [data, rarity]);
+
+  // Warm the cache for every owned champion so paging/filtering is instant.
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    prefetchArtwork(data.map((n) => n.tokenId));
+  }, [data]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pageCount - 1);

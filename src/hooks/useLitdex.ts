@@ -8,6 +8,7 @@ import {
   BASE_RPC_URL,
   CONFIG_GAMES_REQUIRED,
   CONFIG_REPAIR_COST,
+  artworkUrl,
   nftContract,
   pointsContract,
   usdtContract,
@@ -111,11 +112,43 @@ export function useGameConfig() {
   });
 }
 
+const OWNED_CACHE_PREFIX = "litdex:owned:";
+
+type CachedNft = Omit<OwnedNft, "tokenId"> & { tokenId: string };
+
+function readOwnedCache(address: string): OwnedNft[] | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(OWNED_CACHE_PREFIX + address.toLowerCase());
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as CachedNft[];
+    return parsed.map((n) => ({ ...n, tokenId: BigInt(n.tokenId) }));
+  } catch {
+    return undefined;
+  }
+}
+
+function writeOwnedCache(address: string, nfts: OwnedNft[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const serialisable: CachedNft[] = nfts.map((n) => ({ ...n, tokenId: n.tokenId.toString() }));
+    window.localStorage.setItem(
+      OWNED_CACHE_PREFIX + address.toLowerCase(),
+      JSON.stringify(serialisable),
+    );
+  } catch {
+    /* storage full / private mode — ignore */
+  }
+}
+
 export function useOwnedNfts() {
   const { address } = useWallet();
   return useQuery({
     queryKey: ["ownedNfts", address],
     enabled: !!address,
+    // Show the last known list instantly, then refresh in the background.
+    initialData: () => (address ? readOwnedCache(address) : undefined),
+    initialDataUpdatedAt: 0,
     queryFn: async (): Promise<OwnedNft[]> => {
       const c = nftRead();
       const next = await c.nextTokenId();
@@ -136,7 +169,7 @@ export function useOwnedNfts() {
         return !!owner && owner.toLowerCase() === address!.toLowerCase();
       });
 
-      return Promise.all(
+      const result = await Promise.all(
         mine.map(async (tokenId) => {
           const s = await c.tokenState(tokenId);
           return {
@@ -148,6 +181,8 @@ export function useOwnedNfts() {
           };
         }),
       );
+      writeOwnedCache(address!, result);
+      return result;
     },
     refetchInterval: 30000,
   });
@@ -163,12 +198,19 @@ export function useLevelCost(level: number) {
   });
 }
 
+/**
+ * Resolves the artwork for a token. The predictable API URL is returned
+ * immediately as placeholder data so the image starts downloading at once;
+ * the on-chain tokenURI is resolved in the background and only swaps the
+ * source if it points somewhere else.
+ */
 export function useNftArtwork(tokenId: bigint | undefined) {
   return useQuery({
     queryKey: ["nftArtwork", tokenId?.toString()],
     enabled: tokenId !== undefined,
     retry: false,
     staleTime: Infinity,
+    placeholderData: tokenId !== undefined ? artworkUrl(tokenId) : undefined,
     queryFn: async (): Promise<string | null> => {
       const uri = await nftRead().tokenURI(tokenId!);
       const httpUri = uri.startsWith("ipfs://")
@@ -180,16 +222,26 @@ export function useNftArtwork(tokenId: bigint | undefined) {
         image = json.image ?? null;
       } else {
         const res = await fetch(httpUri);
-        if (!res.ok) return null;
+        if (!res.ok) return artworkUrl(tokenId!);
         const json = await res.json();
         image = json.image ?? null;
       }
       if (image && image.startsWith("ipfs://")) {
         image = image.replace("ipfs://", "https://ipfs.io/ipfs/");
       }
-      return image;
+      return image ?? artworkUrl(tokenId!);
     },
   });
+}
+
+/** Warm the browser cache for a batch of token artworks. */
+export function prefetchArtwork(tokenIds: bigint[]) {
+  if (typeof window === "undefined") return;
+  for (const id of tokenIds) {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = artworkUrl(id);
+  }
 }
 
 export function useRefreshAll() {
