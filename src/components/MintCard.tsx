@@ -398,10 +398,10 @@ export function MintCard() {
               <span className="btn-label">
                 {selectedVouchers.length === 0
                   ? "Select vouchers to mint"
-                  : (status ??
+                    : (status ??
                     `Mint ${selectedVouchers.length} in one transaction · $${
                       selectedCost !== null ? formatUsdt(selectedCost) : "…"
-                    } USDT`)}
+                    } ${voucherPayToken}`)}
               </span>
             </button>
           </div>
