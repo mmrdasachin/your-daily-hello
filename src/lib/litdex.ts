@@ -60,7 +60,9 @@ export const POINTS_ABI = [
 
 export const NFT_ABI = [
   "function mint() external",
+  "function mintBatch(uint256 quantity) external",
   "function mintWithVoucher((address wallet,uint256 discountBps,bytes32 nonce) voucher, bytes signature) external",
+  "function mintWithVouchersBatch((address wallet,uint256 discountBps,bytes32 nonce)[] vouchers, bytes[] signatures) external",
   "function levelUp(uint256 tokenId) external",
   "function promote(uint256 tokenId) external",
   "function repair(uint256 tokenId) external",
@@ -158,9 +160,14 @@ type Tx = ethers.ContractTransactionResponse;
 
 export interface NftContract extends ethers.BaseContract {
   mint(): Promise<Tx>;
+  mintBatch(quantity: number): Promise<Tx>;
   mintWithVoucher(
     voucher: [string, number, string],
     signature: string,
+  ): Promise<Tx>;
+  mintWithVouchersBatch(
+    vouchers: [string, number, string][],
+    signatures: string[],
   ): Promise<Tx>;
   levelUp(tokenId: bigint): Promise<Tx>;
   promote(tokenId: bigint): Promise<Tx>;

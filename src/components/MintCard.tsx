@@ -99,30 +99,43 @@ export function MintCard() {
   })();
 
   const [qtyByCategory, setQtyByCategory] = useState<Record<string, number>>({});
-  const qtyFor = (category: string) => qtyByCategory[category] ?? 1;
+  const qtyFor = (category: string) => qtyByCategory[category] ?? 0;
   const setQty = (category: string, next: number, max: number) =>
     setQtyByCategory((prev) => ({
       ...prev,
-      [category]: Math.max(1, Math.min(next, max)),
+      [category]: Math.max(0, Math.min(next, max)),
     }));
 
+  const selectedVouchers = voucherGroups.flatMap(([category, vouchers]) =>
+    vouchers.slice(0, Math.min(qtyFor(category), vouchers.length)),
+  );
+  const selectedCost =
+    price !== null
+      ? selectedVouchers.reduce(
+          (sum, v) => sum + discountedPrice(price, v.discountBps),
+          0n,
+        )
+      : null;
 
+  const remainingPublic = Math.max(0, WALLET_LIMIT - ownedCount);
+  const [publicQty, setPublicQty] = useState(1);
+  const publicQtyClamped = Math.max(1, Math.min(publicQty, Math.max(remainingPublic, 1)));
 
-
-  async function handleMint() {
-    if (!address || price === null) return;
+  async function handleMint(quantity: number) {
+    if (!address || price === null || quantity < 1) return;
+    const totalCost = price * BigInt(quantity);
     try {
       const allowance = await usdtRead().allowance(address, NFT_ADDRESS);
       const signer = await getSigner();
-      if (allowance < price) {
+      if (allowance < totalCost) {
         setStatus("Approving…");
         const usdt = usdtContract(signer);
-        const approveTx = await usdt.approve(NFT_ADDRESS, price);
+        const approveTx = await usdt.approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
       setStatus("Minting…");
       const nft = nftContract(signer);
-      const tx = await nft.mint();
+      const tx = await nft.mintBatch(quantity);
       await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
@@ -132,7 +145,9 @@ export function MintCard() {
       }
       await refreshAll();
       await refetchStatus();
-      toast.success("NFT minted");
+      toast.success(
+        quantity > 1 ? `${quantity} NFTs minted` : "NFT minted",
+      );
     } catch (err) {
       toast.error(parseWalletError(err, "Mint failed, try again."));
     } finally {
@@ -154,15 +169,12 @@ export function MintCard() {
         const approveTx = await usdtContract(signer).approve(NFT_ADDRESS, totalCost);
         await approveTx.wait();
       }
-      for (let i = 0; i < vouchers.length; i++) {
-        const voucher = vouchers[i]!;
-        setStatus(vouchers.length > 1 ? `Minting ${i + 1}/${vouchers.length}…` : "Minting…");
-        const tx = await nftContract(signer).mintWithVoucher(
-          [voucher.wallet, voucher.discountBps, voucher.nonce],
-          voucher.signature,
-        );
-        await tx.wait();
-      }
+      setStatus("Minting…");
+      const tx = await nftContract(signer).mintWithVouchersBatch(
+        vouchers.map((v) => [v.wallet, v.discountBps, v.nonce]),
+        vouchers.map((v) => v.signature),
+      );
+      await tx.wait();
       try {
         const next = await nftRead().nextTokenId();
         if (next > 1n) setMintedId(next - 1n);
@@ -172,7 +184,7 @@ export function MintCard() {
       await refreshAll();
       await Promise.all([refetchStatus(), refetchVouchers()]);
       toast.success(
-        `${vouchers.length} ${vouchers[0]!.category} minted with ${discountLabel(vouchers[0]!.discountBps)} off`,
+        `${vouchers.length} ${vouchers.length === 1 ? "NFT" : "NFTs"} minted with whitelist discounts`,
       );
     } catch (err) {
       toast.error(parseWalletError(err, "Voucher mint failed, try again."));
@@ -285,7 +297,7 @@ export function MintCard() {
                       <div className="flex items-center gap-2 rounded-full bg-white px-2 py-1">
                         <button
                           aria-label={`Decrease ${category} quantity`}
-                          disabled={qty <= 1 || busy}
+                          disabled={qty <= 0 || busy}
                           onClick={() => setQty(category, qty - 1, vouchers.length)}
                           className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
                         >
@@ -303,18 +315,31 @@ export function MintCard() {
                           <Plus className="size-3.5" />
                         </button>
                       </div>
-                      <button
-                        disabled={!address || !correctNetwork || busy || price === null}
-                        onClick={() => void handleVoucherMint(vouchers.slice(0, qty))}
-                        className="btn fx-9 btn-pill btn-blue"
-                      >
-                        <span className="btn-label">Mint</span>
-                      </button>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            <button
+              disabled={
+                !correctNetwork ||
+                busy ||
+                price === null ||
+                selectedVouchers.length === 0
+              }
+              onClick={() => void handleVoucherMint(selectedVouchers)}
+              className="btn fx-9 btn-pill btn-blue mt-4 w-full"
+            >
+              <span className="btn-label">
+                {selectedVouchers.length === 0
+                  ? "Select vouchers to mint"
+                  : (status ??
+                    `Mint ${selectedVouchers.length} in one transaction · $${
+                      selectedCost !== null ? formatUsdt(selectedCost) : "…"
+                    } USDT`)}
+              </span>
+            </button>
           </div>
         )}
 
@@ -363,31 +388,58 @@ export function MintCard() {
                   {started ? "MINTING NOW" : "NOT STARTED"}
                 </p>
               </div>
-              <button
-                disabled={
-                  !correctNetwork ||
-                  soldOut ||
-                  busy ||
-                  !mintStatus ||
-                  !started ||
-                  limitReached
-                }
-                onClick={() => void handleMint()}
-                className="btn fx-9 btn-pill btn-blue"
-              >
-                <span className="btn-label">
-                  {soldOut
-                    ? "Sold out"
-                    : !started
-                      ? countdown
-                        ? `Starts in ${countdown}`
-                        : "Not started"
-                      : limitReached
-                        ? "Limit reached"
-                        : (status ??
-                          `Mint now · $${price !== null ? formatUsdt(price) : "…"} USDT`)}
-                </span>
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-full bg-[#F4F4F2] px-2 py-1">
+                  <button
+                    aria-label="Decrease public mint quantity"
+                    disabled={publicQtyClamped <= 1 || busy}
+                    onClick={() => setPublicQty(publicQtyClamped - 1)}
+                    className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
+                  >
+                    <Minus className="size-3.5" />
+                  </button>
+                  <span className="min-w-5 text-center font-mono text-sm font-bold text-black">
+                    {publicQtyClamped}
+                  </span>
+                  <button
+                    aria-label="Increase public mint quantity"
+                    disabled={publicQtyClamped >= remainingPublic || busy}
+                    onClick={() => setPublicQty(publicQtyClamped + 1)}
+                    className="grid size-7 place-items-center rounded-full bg-black/5 text-black disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+                <button
+                  disabled={
+                    !correctNetwork ||
+                    soldOut ||
+                    busy ||
+                    !mintStatus ||
+                    !started ||
+                    limitReached
+                  }
+                  onClick={() => void handleMint(publicQtyClamped)}
+                  className="btn fx-9 btn-pill btn-blue"
+                >
+                  <span className="btn-label">
+                    {soldOut
+                      ? "Sold out"
+                      : !started
+                        ? countdown
+                          ? `Starts in ${countdown}`
+                          : "Not started"
+                        : limitReached
+                          ? "Limit reached"
+                          : (status ??
+                            `Mint ${publicQtyClamped} · $${
+                              price !== null
+                                ? formatUsdt(price * BigInt(publicQtyClamped))
+                                : "…"
+                            } USDT`)}
+                  </span>
+                </button>
+              </div>
             </div>
             <p className="mt-3 text-right font-mono text-[11px] font-bold tracking-wide text-black/40">
               LIMIT {WALLET_LIMIT} PER WALLET · YOU OWN {ownedCount}
